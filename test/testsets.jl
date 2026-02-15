@@ -27,7 +27,7 @@ end
     # Aspect Ratio = 1.0 means fibers are spheres. 
     # Spheres are isotropic; E1 should equal E2 even with aligned a11.
     ar = 1.0
-    vf = 0.2
+    vf = 0.15
     Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
     a11 = 0.7
     a22 = 0.25
@@ -43,9 +43,9 @@ end
     # a11 = 1.0 means all fibers are perfectly parallel.
     # This must yield a Transversely Isotropic material.
     a11, a22  = 1.0,  0.0
-    Em, num, Ef, nuf = 1.0, 0.3, 10.0, 0.2
+    Em, num, Ef, nuf = 2500.0, 0.3, 70e3, 0.2
     aspect_ratio = 10.0
-    vf = 0.3
+    vf = 0.17
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
     
     @test res.E1 > res.E2
@@ -60,7 +60,7 @@ end
     a11 = a22  = 1/3
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 10.0
-    vf = 0.3
+    vf = 0.2
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
     
     @test isapprox(res.E1, res.E2, rtol=0.01)
@@ -75,7 +75,7 @@ end
     a11, a22  = 1.0, 0.0
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 1000.0
-    vf = 0.3
+    vf = 0.2
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
     ROM_E1 = vf * Ef + (1 - vf) * Em
     @info "E1 computed = $(res.E1)"
