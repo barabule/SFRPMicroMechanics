@@ -9,6 +9,7 @@ GeometryBasics = "5c1252a2-5f33-56bf-86c9-59e7332b4326"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+Tullio = "bc48ee85-29a4-5162-ae0b-a64e1601d4bc"
 
 [compat]
 GLMakie = "0.13.8"
@@ -16,3 +17,4 @@ GeometryBasics = "0.5.10"
 LinearAlgebra = "1.12.0"
 StaticArrays = "1.9.16"
 Statistics = "1.11.1"
+Tullio = "0.3.9"

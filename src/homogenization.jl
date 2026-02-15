@@ -102,6 +102,76 @@ function mori_tanaka(Cm, Cf, vf, AR, nu_m)
     return Cm + vf * (Cf - Cm) * A_MT
 end
 
+@inline function δ(i, j) 
+    i == j ? 1 : 0
+end
+
+function I4(T=Float64)
+
+    I4 = zeros(T, 3,3,3,3)
+    for i in 1:3, j in 1:3, k in 1:3, l in 1:3
+        I4[i,j,k,l] = 1/2 *(δ(i, j) * δ(j, l) + δ(i, l) * δ(j, k))
+    end
+end
+
+
+# # This is equivalent to the math: σ_ij = C_ijkl * ε_kl
+# @tullio σ[i, j] := C4[i, j, k, l] * ε[k, l]
+
+"""
+    orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
+    
+Returns a 6x6 SMatrix representing the stiffness matrix in Voigt notation.
+"""
+function orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
+    # Symmetry relations for Poisson's ratios
+    v21 = v12 * E2 / E1
+    v31 = v13 * E3 / E1
+    v32 = v23 * E3 / E2
+
+    # Construct Compliance Matrix S as an MMatrix (mutable for filling)
+    S = @MArray zeros(6, 6)
+    
+    # Normal components
+    S[1,1] = 1/E1;   S[1,2] = -v21/E2; S[1,3] = -v31/E3
+    S[2,1] = -v12/E1; S[2,2] = 1/E2;    S[2,3] = -v32/E3
+    S[3,1] = -v13/E1; S[3,2] = -v23/E2; S[3,3] = 1/E3
+
+    # Shear components
+    S[4,4] = 1/G23
+    S[5,5] = 1/G13
+    S[6,6] = 1/G12
+
+    # Return as an immutable SMatrix for performance
+    return SMatrix{6,6}(inv(S))
+end
+
+"""
+    orthotropic_tensor(E1, E2, E3, v12, v13, v23, G12, G13, G23)
+    
+Returns a 3x3x3x3 SArray representing the full 4th order stiffness tensor.
+"""
+function orthotropic_tensor(E1, E2, E3, v12, v13, v23, G12, G13, G23)
+    C_v = orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
+    
+    # Voigt index mapping: (i,j) -> Voigt index
+    # We use a nested tuple for fast lookup in StaticArrays context
+    lookup = (
+        (1, 6, 5),
+        (6, 2, 4),
+        (5, 4, 3)
+    )
+
+    # Generate the 4th order tensor using a comprehension
+    # This creates an SArray{Tuple{3,3,3,3}}
+    C4 = @SArray [C_v[lookup[i][j], lookup[k][l]] for i=1:3, j=1:3, k=1:3, l=1:3]
+    
+    return C4
+end
+
+function rotate_tensor(C, R)
+    @tullio C_rot[i,j,k,l] := R[i,m] * R[j,n] * R[k,o] * R[l,p] * C[m,n,o,p]
+end
 # function mori_tanaka(E_m, nu_m, E_f, nu_f, v_f, aspect_ratio)
 #     Cm = isotropic_stiffness(E_m, nu_m)
 #     Cf = isotropic_stiffness(E_f, nu_f)

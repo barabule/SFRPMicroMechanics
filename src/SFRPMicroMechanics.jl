@@ -4,6 +4,7 @@ using LinearAlgebra
 using Statistics
 using GeometryBasics
 using StaticArrays
+using Tullio
 
 # Include sub-modules
 include("homogenization.jl")
