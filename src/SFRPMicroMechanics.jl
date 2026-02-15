@@ -4,7 +4,7 @@ using LinearAlgebra
 using Statistics
 using GeometryBasics
 using StaticArrays
-using Tullio
+# using Tullio
 
 # Include sub-modules
 include("typedefs.jl")
