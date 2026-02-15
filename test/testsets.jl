@@ -57,7 +57,7 @@ end
     
 @testset "3D Random Isotropy" verbose = true begin
     # a11 = a22 = a33 = 1/3 is a perfectly random 3D distribution.
-    a11= a22  = 1/3
+    a11 = a22  = 1/3
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 10.0
     vf = 0.3

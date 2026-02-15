@@ -80,10 +80,64 @@ function stiffness_matrix_voigt(elastic_parameters::IsotropicElasticParameters)
     return isotropic_stiffness(E, nu)
 end
 
-function stiffness_matrix_voigt(elastic_parameters::OrthotropicElasticParameters)
-    E1, E2, E3, G12, G23, G31, nu21, nu31, nu32 = elastic_parameters
-    return orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32) 
+function stiffness_matrix_voigt(p::OrthotropicElasticParameters)
+    
+    return orthotropic_stiffness(p.E1, p.E2, p.E3, p.G12, p.G23, p.G31, p.nu21, p.nu31, p.nu32) 
 end
+
+
+# Isotropic Stiffness Matrix (Voigt 6x6)
+function isotropic_stiffness(E, nu)
+    λ = (E * nu) / ((1 + nu) * (1 - 2nu))
+    μ = E / (2 * (1 + nu))
+
+    return @SMatrix [λ+2μ   λ     λ     0   0   0;
+                      λ     λ+2μ  λ     0   0   0;
+                      λ     λ     λ+2μ  0   0   0;
+                      0     0     0     μ   0   0;
+                      0     0     0     0   μ   0;
+                      0     0     0     0   0   μ]
+end
+
+
+"""
+calc_vol_fraction(w_f, rho_f, rho_m)
+Converts fiber weight fraction (e.g., 0.30 for 30% GF) to volume fraction.
+"""
+function calc_vol_fraction(w_f, rho_f, rho_m)
+    v_f = (w_f / rho_f) / (w_f / rho_f + (1 - w_f) / rho_m)
+    return v_f
+end
+
+function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
+    nu12 = nu21 * E1 / E2
+    nu13 = nu31 * E1 / E3
+    nu23 = nu32 * E2 / E3
+
+    C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
+                    -nu12/E1     1/E2        -nu32/E3   0     0     0;
+                    -nu13/E1   -nu23/E2        1/E3     0     0     0;
+                       0          0             0     1/G23   0     0;
+                       0          0             0       0    1/G31  0;
+                       0          0             0       0     0    1/G12]
+
+    return SMatrix(inv(C))    
+end
+
+
+# Extract 9 Orthotropic Constants from Stiffness
+function extract_orthotropic_constants(C_66)
+    S = inv(C_66) #compliance
+    E1, E2, E3 = 1/S[1,1], 1/S[2,2], 1/S[3,3]
+    G23, G31, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
+    nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
+    return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
+   
+end
+
+
+
+
 
 
 struct OrientationTensor{T<:Real}
@@ -91,9 +145,19 @@ struct OrientationTensor{T<:Real}
     a22::T
 
     function OrientationTensor(a11, a22)
-        T = promote_type(a11, a22)
+        args = promote(a11, a22)
+        T = eltype(args)
         @assert 1/3 <= a11 <= 1 "a11 must be between 1/3 and 1!"
-        @assert 1/2*(1 - a11) <= a22 <= min(a11, 1-a11) "a22 must be smaller than a11, and larger than a33!"
-        return new{T}(a11, a22)
+        delta = sqrt(eps(T))
+        @assert 1/2*(1 - a11)-delta <= a22 <= min(a11, 1-a11)+delta "a22 must be smaller than a11, and larger than a33!"
+        return new{T}(args...)
     end
+end
+
+function to_matrix(A::OrientationTensor)
+    a11, a22 = A.a11, A.a22
+    a33 = 1 - a11 - a22
+    return Symmetric(SMatrix{3,3}([a11 0 0;
+                                    0 a22 0;
+                                    0  0  a33]))
 end

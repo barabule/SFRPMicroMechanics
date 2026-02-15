@@ -1,40 +1,4 @@
-# Isotropic Stiffness Matrix (Voigt 6x6)
-function isotropic_stiffness(E, nu)
-    λ = (E * nu) / ((1 + nu) * (1 - 2nu))
-    μ = E / (2 * (1 + nu))
 
-    return @SMatrix [λ+2μ   λ     λ     0   0   0;
-                      λ     λ+2μ  λ     0   0   0;
-                      λ     λ     λ+2μ  0   0   0;
-                      0     0     0     μ   0   0;
-                      0     0     0     0   μ   0;
-                      0     0     0     0   0   μ]
-end
-
-
-"""
-calc_vol_fraction(w_f, rho_f, rho_m)
-Converts fiber weight fraction (e.g., 0.30 for 30% GF) to volume fraction.
-"""
-function calc_vol_fraction(w_f, rho_f, rho_m)
-    v_f = (w_f / rho_f) / (w_f / rho_f + (1 - w_f) / rho_m)
-    return v_f
-end
-
-function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
-    nu12 = nu21 * E1 / E2
-    nu13 = nu31 * E1 / E3
-    nu23 = nu32 * E2 / E3
-
-    C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
-                    -nu12/E1     1/E2        -nu32/E3   0     0     0;
-                    -nu13/E1   -nu23/E2        1/E3     0     0     0;
-                       0          0             0     1/G23   0     0;
-                       0          0             0       0    1/G31  0;
-                       0          0             0       0     0    1/G12]
-
-    return inv(C)    
-end
 
 
 # Full Analytical Eshelby Tensor for Prolate Spheroids
@@ -85,44 +49,10 @@ end
 # # This is equivalent to the math: σ_ij = C_ijkl * ε_kl
 # @tullio σ[i, j] := C4[i, j, k, l] * ε[k, l]
 
-"""
-    orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
-    
-Returns a 6x6 SMatrix representing the stiffness matrix in Voigt notation.
-"""
-function orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
-    # Symmetry relations for Poisson's ratios
-    v21 = v12 * E2 / E1
-    v31 = v13 * E3 / E1
-    v32 = v23 * E3 / E2
 
-    # Construct Compliance Matrix S as an MMatrix (mutable for filling)
-    S = @MArray zeros(6, 6)
-    
-    # Normal components
-    S[1,1] = 1/E1;   S[1,2] = -v21/E2; S[1,3] = -v31/E3
-    S[2,1] = -v12/E1; S[2,2] = 1/E2;    S[2,3] = -v32/E3
-    S[3,1] = -v13/E1; S[3,2] = -v23/E2; S[3,3] = 1/E3
 
-    # Shear components
-    S[4,4] = 1/G23
-    S[5,5] = 1/G13
-    S[6,6] = 1/G12
+function convert_voigt_to_tensor(C66)
 
-    # Return as an immutable SMatrix for performance
-    return SMatrix{6,6}(inv(S))
-end
-
-"""
-    orthotropic_tensor(E1, E2, E3, v12, v13, v23, G12, G13, G23)
-    
-Returns a 3x3x3x3 SArray representing the full 4th order stiffness tensor.
-"""
-function orthotropic_tensor(E1, E2, E3, v12, v13, v23, G12, G13, G23)
-    C_v = orthotropic_voigt(E1, E2, E3, v12, v13, v23, G12, G13, G23)
-    
-    # Voigt index mapping: (i,j) -> Voigt index
-    # We use a nested tuple for fast lookup in StaticArrays context
     lookup = (
         (1, 6, 5),
         (6, 2, 4),
@@ -131,7 +61,7 @@ function orthotropic_tensor(E1, E2, E3, v12, v13, v23, G12, G13, G23)
 
     # Generate the 4th order tensor using a comprehension
     # This creates an SArray{Tuple{3,3,3,3}}
-    C4 = @SArray [C_v[lookup[i][j], lookup[k][l]] for i=1:3, j=1:3, k=1:3, l=1:3]
+    C4 = @SArray [C66[lookup[i][j], lookup[k][l]] for i=1:3, j=1:3, k=1:3, l=1:3]
     
     return C4
 end
@@ -139,25 +69,6 @@ end
 function rotate_tensor(C, R)
     @tullio C_rot[i,j,k,l] := R[i,m] * R[j,n] * R[k,o] * R[l,p] * C[m,n,o,p]
 end
-# function mori_tanaka(E_m, nu_m, E_f, nu_f, v_f, aspect_ratio)
-#     Cm = isotropic_stiffness(E_m, nu_m)
-#     Cf = isotropic_stiffness(E_f, nu_f)
-#     I = Blueprints.eye(6) # Identity 6x6
-    
-#     # 1. Get Eshelby Tensor
-#     S = eshelby_tensor_prolate(nu_m, aspect_ratio)
-    
-#     # 2. Dilute Concentration Tensor A_dil
-#     # A_dil = [I + S * inv(Cm) * (Cf - Cm)]^-1
-#     A_dil = inv(I + S * (inv(Cm) * (Cf - Cm)))
-    
-#     # 3. Mori-Tanaka Concentration Tensor A_MT
-#     A_MT = A_dil * inv((1 - v_f) * I + v_f * A_dil)
-    
-#     # 4. Effective Stiffness
-#     C_eff = Cm + v_f * (Cf - Cm) * A_MT
-#     return C_eff
-# end
 
 
 """
@@ -165,7 +76,7 @@ Computes the 4th-order orientation tensor using the Hybrid Closure approximation
 Balances Linear and Quadratic closures based on the degree of alignment.
 """
 function hybrid_closure(orientation_tensor)
-    a = Symmetric(SMatrix{3,3}(orientation_tensor))
+    a = orientation_tensor
 
     # 1. Calculate the interaction scalar 'f'
     # f = 1 - 27*det(a)
@@ -203,8 +114,8 @@ end
 
 # Advani-Tucker Orientation Averaging
 function orientation_average(C_aligned, a11, a22)
-    a33 = 1.0 - a11 - a22
-    a_mat = SMatrix{3,3}(diagm([a11, a22, a33]))
+    
+    a_mat = to_matrix(OrientationTensor(a11, a22))
     A4 = hybrid_closure(a_mat)
     
     # Transversely Isotropic Invariants
@@ -228,103 +139,6 @@ function orientation_average(C_aligned, a11, a22)
 end
 
 
-# Extract 9 Orthotropic Constants from Stiffness
-function extract_orthotropic_constants(C_66)
-    S = inv(C_66) #compliance
-    E1, E2, E3 = 1/S[1,1], 1/S[2,2], 1/S[3,3]
-    G23, G31, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
-    nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
-    return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
-    # return Dict("E1"=>E1, "E2"=>E2, "E3"=>E3, "G12"=>G12, "G23"=>G23, "G13"=>G13,
-    #             "nu12"=>-S[2,1]*E1, "nu23"=>-S[3,2]*E2, "nu13"=>-S[3,1]*E1)
-end
-
-
-"""
-    apparent_modulus(theta_deg, props)
-    Calculates the Young's Modulus at an angle theta (degrees) 
-    relative to the 1-axis.
-    """
-    function apparent_modulus(theta_deg, p)
-        θ = deg2rad(theta_deg)
-        s = sin(θ)
-        c = cos(θ)
-        
-        # Off-axis compliance calculation
-        inv_E_theta = (c^4 / p["E1"]) + 
-            ( (1/p["G12"]) - (2*p["nu12"]/p["E1"]) ) * (s^2 * c^2) + 
-                (s^4 / p["E2"])
-            
-            return 1.0 / inv_E_theta
-    end
-    
-    
-    """
-    apparent_modulus_3d(phi_deg, theta_deg, C_avg_66)
-    
-    Calculates the Young's Modulus in 3D space.
-    - phi_deg: Inclination from the 3-axis (0 to 180)
-    - theta_deg: Azimuth from the 1-axis in the 1-2 plane (0 to 360)
-    - C_avg_66: The 6x6 Voigt stiffness matrix from the module
-    """
-    function apparent_modulus_3d(phi_deg, theta_deg, C_avg_66)
-        # 1. Convert C to 4th-order compliance S_ijkl
-        S_66 = inv(C_avg_66)
-        
-        # Map Voigt 6x6 to 3x3x3x3 tensor S
-        S = zeros(3, 3, 3, 3)
-        v = [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
-        for r in 1:6, c in 1:6
-            i, j = v[r]
-            k, l = v[c]
-            # Voigt shear components in S involve factors of 1, 1/2, or 1/4
-            val = S_66[r, c]
-            if r > 3; val /= 2.0; end
-            if c > 3; val /= 2.0; end
-            
-            S[i,j,k,l] = S[j,i,k,l] = S[i,j,l,k] = S[j,i,l,k] = val
-        end
-        
-        # 2. Define the direction unit vector n
-        ϕ = deg2rad(phi_deg)
-        θ = deg2rad(theta_deg)
-        
-        nx = sin(ϕ) * cos(θ)
-        ny = sin(ϕ) * sin(θ)
-        nz = cos(ϕ)
-        n = [nx, ny, nz]
-        
-        # 3. Calculate 1/E = S_ijkl * ni * nj * nk * nl
-        inv_E = 0.0
-        for i=1:3, j=1:3, k=1:3, l=1:3
-            inv_E += S[i,j,k,l] * n[i] * n[j] * n[k] * n[l]
-        end
-        
-        return 1.0 / inv_E
-    end
-
-
-# # 3D Apparent Modulus Evaluation
-# function apparent_modulus_3d(phi_deg, theta_deg, C_66)
-#     S_66 = inv(C_66)
-#     nx = sin(deg2rad(phi_deg)) * cos(deg2rad(theta_deg))
-#     ny = sin(deg2rad(phi_deg)) * sin(deg2rad(theta_deg))
-#     nz = cos(deg2rad(phi_deg))
-#     n = [nx, ny, nz]
-    
-#     # 4th order compliance contraction
-#     v = [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
-#     inv_E = 0.0
-#     for r=1:6, c=1:6
-#         i,j = v[r]; k,l = v[c]
-#         val = S_66[r,c]
-#         if r>3; val /= 2.0; end
-#         if c>3; val /= 2.0; end
-#         inv_E += val * n[i] * n[j] * n[k] * n[l]
-#     end
-#     return 1.0 / inv_E
-# end
-
 # Main wrapper function to be called by users
 function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
 
@@ -334,6 +148,8 @@ function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
     C_avg = orientation_average(C_aligned, a11, a22)
     return extract_orthotropic_constants(C_avg)
 end
+
+
 
 """
     compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
@@ -468,82 +284,3 @@ end
 # # Run the hybrid homogenization
 # C_hybrid_aligned = compute_hybrid_sfrp(2500.0, 0.35, fibers, 0.7, 0.2)
 
-"""
-generate_stiffness_mesh(C_avg_66; resolution=50)
-
-Generates a (nodes, faces) tuple for GLMakie.
-- resolution: Number of points for theta and phi.
-"""
-function generate_stiffness_mesh(C_avg_66; resolution=60)
-    # Define angles
-    phi = range(0, stop=π, length=resolution)      # Inclination
-    theta = range(0, stop=2π, length=resolution)    # Azimuth
-    
-    nodes = Point3f[]
-    
-    # 1. Generate Nodes
-    # We use the previously defined 3D evaluation logic
-    for p in phi
-        for t in theta
-            # Unit vector n
-            nx = sin(p) * cos(t)
-            ny = sin(p) * sin(t)
-            nz = cos(p)
-            
-            # Evaluate E in this direction
-            # Note: We call the apparent_modulus_3d logic here
-            E_val = apparent_modulus_3d(rad2deg(p), rad2deg(t), C_avg_66)
-            
-            # Scale the unit vector by the modulus magnitude
-            push!(nodes, Point3f(E_val * nx, E_val * ny, E_val * nz))
-        end
-    end
-    
-    # 2. Generate Faces (Triangulation of the sphere grid)
-    faces = TriangleFace{Int}[]
-    for i in 1:(resolution - 1)
-        for j in 1:(resolution - 1)
-            # Standard grid-to-mesh indexing
-            p1 = (i - 1) * resolution + j
-            p2 = i * resolution + j
-            p3 = i * resolution + (j + 1)
-            p4 = (i - 1) * resolution + (j + 1)
-            
-            push!(faces, TriangleFace(p1, p2, p3))
-            push!(faces, TriangleFace(p1, p3, p4))
-        end
-    end
-    
-    return nodes, faces
-end
-
-
-"""
-get_stiffness_slice(C_66, plane=:xy; resolution=100)
-
-Returns (angles, moduli) for a specific plane.
-    - :xy -> Plane 1-2 (Flow / Cross-flow)
-    - :xz -> Plane 1-3 (Flow / Thickness)
-    - :yz -> Plane 2-3 (Cross-flow / Thickness)
-"""
-function get_stiffness_slice(C_66, plane=:xy; resolution=180)
-    alphas = range(0, 2π, length=resolution)
-    moduli = Float64[]
-    
-    for α in alphas
-        if plane == :xy
-            # Inclination phi = 90 deg (XY plane), theta = alpha
-            E = apparent_modulus_3d(90.0, rad2deg(α), C_66)
-            elseif plane == :xz
-            # theta = 0 deg, inclination phi = alpha
-            E = apparent_modulus_3d(rad2deg(α), 0.0, C_66)
-            elseif plane == :yz
-            # theta = 90 deg, inclination phi = alpha
-            E = apparent_modulus_3d(rad2deg(α), 90.0, C_66)
-        else
-            error("Plane must be :xy, :xz, or :yz")
-        end
-        push!(moduli, E)
-    end
-    return alphas, moduli
-end

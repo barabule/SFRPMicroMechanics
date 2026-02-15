@@ -9,6 +9,7 @@ using Tullio
 # Include sub-modules
 include("typedefs.jl")
 include("homogenization.jl")
+include("analyse.jl")
 
 
 # Re-export main functions for the user
