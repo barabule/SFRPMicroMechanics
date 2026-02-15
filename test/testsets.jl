@@ -6,18 +6,18 @@
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.0, 15.0, 0.7, 0.25
     props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     # @info props
-    @test isapprox(props["E1"], Em, atol=1e-2)
-    @test isapprox(props["nu12"], num, atol=1e-4)
-    @test isapprox(props["E2"], Em, atol=1e-1)
-    @test isapprox(props["G12"], Em / (2*(1+num)), atol=1e-1)
+    @test isapprox(props.E1, Em, atol=1e-2)
+    @test isapprox(props.nu12, num, atol=1e-4)
+    @test isapprox(props.E2, Em, atol=1e-1)
+    @test isapprox(props.G12, Em / (2*(1+num)), atol=1e-1)
 end
 
 @testset "Anisotropic Properties" verbose = true begin
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
     props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     # @info props
-    @test props["E1"] > props["E2"]
-    @test isapprox(props["E2"], props["E3"], rtol=1e-3)
+    @test props.E1 > props.E2
+    @test isapprox(props.E2, props.E3, rtol=1e-3)
     
     
 end
@@ -32,11 +32,9 @@ end
     a11 = 0.7
     a22 = 0.25
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    for (k,v) in res
-        @info "$k = $v"
-    end
-    @test isapprox(res["E1"], res["E2"], rtol=0.01)
-    @test isapprox(res["E1"], res["E3"], rtol=0.01)
+    @info res
+    @test isapprox(res.E1, res.E2, rtol=0.01)
+    @test isapprox(res.E1, res.E3, rtol=0.01)
     # Explanation: A sphere has no preferred direction. If E1 != E2, 
     # the Eshelby tensor or the index mapping in Advani-Tucker is wrong.
 end
@@ -50,9 +48,9 @@ end
     vf = 0.3
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
     
-    @test res["E1"] > res["E2"]
-    @test isapprox(res["E2"], res["E3"], rtol=1e-4)
-    @test isapprox(res["nu12"], res["nu13"], rtol=1e-4)
+    @test res.E1 > res.E2
+    @test isapprox(res.E2, res.E3, rtol=1e-4)
+    @test isapprox(res.nu12, res.nu13, rtol=1e-4)
     # Explanation: In a UD composite, the properties perpendicular 
     # to the fiber (2 and 3 directions) must be identical.
 end
@@ -65,8 +63,8 @@ end
     vf = 0.3
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
     
-    @test isapprox(res["E1"], res["E2"], rtol=0.01)
-    @test isapprox(res["E2"], res["E3"], rtol=0.01)
+    @test isapprox(res.E1, res.E2, rtol=0.01)
+    @test isapprox(res.E2, res.E3, rtol=0.01)
     # Explanation: This tests the Hybrid Closure. At det(a) = 1/27, 
     # f should be 0, triggering the Linear Closure logic.
 end
@@ -80,9 +78,9 @@ end
     vf = 0.3
     res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
     ROM_E1 = vf * Ef + (1 - vf) * Em
-    @info "E1 computed = $(res["E1"])"
+    @info "E1 computed = $(res.E1)"
     @info "Upper bound = $ROM_E1"
-    @test res["E1"] <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
+    @test res.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
     # Explanation: Micromechanics models must respect thermodynamic bounds.
 
 end

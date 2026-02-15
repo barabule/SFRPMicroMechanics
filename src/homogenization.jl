@@ -21,38 +21,7 @@ function calc_vol_fraction(w_f, rho_f, rho_m)
     return v_f
 end
 
-function orthotropic_stiffness(; E1 = 1.0,
-                             E2 = 1.0,
-                             E3 = 1.0,
-                             G12 = 1.0,
-                            G23 = 1.0,
-                            G31 = 1.0,
-                            nu12 = nothing,
-                            nu23 = nothing,
-                            nu13 = nothing,
-                            nu21 = nothing,
-                            nu32 = nothing,
-                            nu31 = nothing)
-
-    @assert !(isnothing(nu12) && isnothing(nu21)) "ν12 or ν21 must be something"
-    @assert !(isnothing(nu23) && isnothing(nu32)) "ν23 or ν32 must be something"
-    @assert !(isnothing(nu13) && isnothing(nu31)) "ν31 or ν13 must be something"
-
-    if isnothing(nu12)
-        nu12 = nu21 * E1 / E2
-    else
-        nu21 = nu12 * E2 / E1
-    end
-    if isnothing(nu23)
-        nu23 = nu32 * E2 / E3
-    else
-        nu32 = nu23 * E3 / E2
-    end
-    if isnothing(nu13)
-        nu13 = nu31 * E1 / E3
-    else
-        nu31 = nu13 * E3 / E1
-    end
+function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, n12, nu21, nu23, nu32, nu13, nu31)
 
     C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
                     -nu12/E1     1/E2        -nu32/E3   0     0     0;
@@ -61,13 +30,8 @@ function orthotropic_stiffness(; E1 = 1.0,
                        0          0             0       0    1/G31  0;
                        0          0             0       0     0    1/G12]
 
-    # return(;stiffness = inv(C), 
-    #         compliance = C)
-    return inv(C)
-    
+    return inv(C)    
 end
-
-
 
 
 # Full Analytical Eshelby Tensor for Prolate Spheroids
@@ -208,9 +172,9 @@ function hybrid_closure(orientation_tensor)
     # Ensure f stays within physical bounds due to numerical precision
     f = clamp(f, 0.0, 1.0)
     
-    A_lin    = zeros(3, 3, 3, 3)
-    A_quad   = zeros(3, 3, 3, 3)
-    A_hybrid = zeros(3, 3, 3, 3)
+    A_lin    = @MArray zeros(3, 3, 3, 3)
+    A_quad   = @MArray zeros(3, 3, 3, 3)
+    A_hybrid = @MArray zeros(3, 3, 3, 3)
     
     δ(i, j) = (i == j) ? 1.0 : 0.0
 
@@ -230,7 +194,7 @@ function hybrid_closure(orientation_tensor)
         A_hybrid[i,j,k,l] = (1.0 - f) * A_lin[i,j,k,l] + f * A_quad[i,j,k,l]
     end
     
-    return A_hybrid
+    return SArray{Tuple{3,3,3,3}}(A_hybrid)
 end
 
 
@@ -250,7 +214,6 @@ function orientation_average(C_aligned, a11, a22)
     C_avg = @MMatrix zeros(6,6)
     v = @SVector [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
 
-    δ(m,n) = (m==n) ? 1.0 : 0.0
     
     for r in 1:6, c in 1:6
         i,j = v[r]; k,l = v[c]
@@ -258,17 +221,19 @@ function orientation_average(C_aligned, a11, a22)
                      B3*(a_mat[i,k]*δ(j,l) + a_mat[i,l]*δ(j,k) + a_mat[j,l]*δ(i,k) + a_mat[j,k]*δ(i,l)) + 
                      B4*(δ(i,j)*δ(k,l)) + B5*(δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
     end
-    return C_avg
+    return SMatrix{6,6}(C_avg)
 end
 
 
 # Extract 9 Orthotropic Constants from Stiffness
 function extract_orthotropic_constants(C_66)
-    S = inv(C_66)
+    S = inv(C_66) #compliance
     E1, E2, E3 = 1/S[1,1], 1/S[2,2], 1/S[3,3]
-    G23, G13, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
-    return Dict("E1"=>E1, "E2"=>E2, "E3"=>E3, "G12"=>G12, "G23"=>G23, "G13"=>G13,
-                "nu12"=>-S[2,1]*E1, "nu23"=>-S[3,2]*E2, "nu13"=>-S[3,1]*E1)
+    G23, G31, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
+    nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
+    return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
+    # return Dict("E1"=>E1, "E2"=>E2, "E3"=>E3, "G12"=>G12, "G23"=>G23, "G13"=>G13,
+    #             "nu12"=>-S[2,1]*E1, "nu23"=>-S[3,2]*E2, "nu13"=>-S[3,1]*E1)
 end
 
 
@@ -360,9 +325,6 @@ end
 # Main wrapper function to be called by users
 function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
 
-
-
-
     Cm = isotropic_stiffness(Em, num)
     Cf = isotropic_stiffness(Ef, nuf)
     C_aligned = mori_tanaka(Cm, Cf, vf, AR, num)
@@ -450,7 +412,7 @@ end
 #### MULTI FIBER
 """
 compute_hybrid_sfrp(matrix_props, fiber_list, a11, a22)
-'fiber_list' is an array of dicts: [%, E, nu, AR]
+'fiber_list' is an array of dicts: [vf, E, nu, AR]
 """
 function compute_hybrid_sfrp(E_m, nu_m, fibers, a11, a22)
     Cm = isotropic_stiffness(E_m, nu_m)

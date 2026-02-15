@@ -7,6 +7,7 @@ using StaticArrays
 using Tullio
 
 # Include sub-modules
+include("typedefs.jl")
 include("homogenization.jl")
 
 
