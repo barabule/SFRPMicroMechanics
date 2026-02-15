@@ -7,7 +7,7 @@
     props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     # @info props
     @test isapprox(props.E1, Em, atol=1e-2)
-    @test isapprox(props.nu12, num, atol=1e-4)
+    @test isapprox(props.nu21, num, atol=1e-4)
     @test isapprox(props.E2, Em, atol=1e-1)
     @test isapprox(props.G12, Em / (2*(1+num)), atol=1e-1)
 end
@@ -50,7 +50,7 @@ end
     
     @test res.E1 > res.E2
     @test isapprox(res.E2, res.E3, rtol=1e-4)
-    @test isapprox(res.nu12, res.nu13, rtol=1e-4)
+    @test isapprox(res.nu21, res.nu31, rtol=1e-4)
     # Explanation: In a UD composite, the properties perpendicular 
     # to the fiber (2 and 3 directions) must be identical.
 end

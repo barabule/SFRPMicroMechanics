@@ -21,7 +21,10 @@ function calc_vol_fraction(w_f, rho_f, rho_m)
     return v_f
 end
 
-function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, n12, nu21, nu23, nu32, nu13, nu31)
+function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
+    nu12 = nu21 * E1 / E2
+    nu13 = nu31 * E1 / E3
+    nu23 = nu32 * E2 / E3
 
     C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
                     -nu12/E1     1/E2        -nu32/E3   0     0     0;
