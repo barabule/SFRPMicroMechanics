@@ -63,7 +63,7 @@ function orthotropic_stiffness(; E1 = 1.0,
 
     # return(;stiffness = inv(C), 
     #         compliance = C)
-    return C
+    return inv(C)
     
 end
 
@@ -96,6 +96,7 @@ end
 function mori_tanaka(Cm, Cf, vf, AR, nu_m)
     I6 = Matrix{eltype(Cm)}(I, 6, 6)
     S = eshelby_tensor_prolate(nu_m, AR)
+    #dilute concentration tensor
     A_dil = inv(I6 + S * (inv(Cm) * (Cf - Cm)))
     A_MT = A_dil * inv((1 - vf) * I6 + vf * A_dil)
     return Cm + vf * (Cf - Cm) * A_MT
@@ -289,7 +290,7 @@ end
 # Main wrapper function to be called by users
 function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
 
-    
+
 
 
     Cm = isotropic_stiffness(Em, num)
