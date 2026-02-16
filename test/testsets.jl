@@ -88,18 +88,33 @@ end
 @testset "Apparent Elastic Modulus" verbose = true begin
 
     p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = 10.0,
-                                                        E2 = 3.5,
-                                                        E3 = 1.5,
-                                                        G12 = 5.0,
-                                                        G23 = 3.5,
-                                                        G31 = 1.8,
-                                                        nu21 = 0.2,
-                                                        nu32 = 0.25,
+                                                        E2 = 1.0,
+                                                        E3 = 0.9,
+                                                        G12 = 0.5,
+                                                        G23 = 0.7,
+                                                        G31 = 0.3,
+                                                        nu21 = 0.05,
+                                                        nu32 = 0.2,
                                                         nu31 = 0.1)
 
     angle = 0.0
     @test SFRPMicroMechanics.apparent_modulus(angle, p) ≈ p.E1
     angle = 90.0
     @test SFRPMicroMechanics.apparent_modulus(angle, p) ≈ p.E2
+
+    #from LS-Dyna run with mat_002 with the same properties
+    #matches somewhat for larger angles (close to 90)
+    ref = Dict(0 => 2.82 / 20 / 0.01453,
+                10=> 2.04 / 20 / 0.01453,
+                20 => 1.09 / 20 / 0.01453,
+                30 => 0.64 / 20 / 0.01453,
+                40 => 0.445 / 20 / 0.01453,
+                50 => 0.355 / 20 / 0.01453,
+                60 => 0.312 / 20 / 0.01453,
+                70 => 0.294 / 20 / 0.01453,
+                80 => 0.287 / 20 / 0.01453,
+                90 => 0.285 / 20 / 0.01453,
+                )
+    
 
 end

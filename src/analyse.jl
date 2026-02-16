@@ -7,12 +7,15 @@ relative to the 1-axis.
 """
 function apparent_modulus(theta_deg, p::OrthotropicElasticParameters)
     θ = theta_deg
+
+    # 1/E_theta = cos(theta)^4 / E1 + sin(theta)^4/E2 + (1/G12 - 2nu12/E1)*sin^2 cos^2
+
     s = sind(θ)
     c = cosd(θ)
     #nu12/E2 = nu21/E1
     E1 = p.E1
     E2 = p.E2
-    nu12 = p.nu21 * E2 / E1
+    nu12 = p.nu21 * E1 / E2
     G12 = p.G12
     # Off-axis compliance calculation
     inv_E_theta = (c^4 / E1) + 

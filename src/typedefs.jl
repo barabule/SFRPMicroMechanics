@@ -59,7 +59,7 @@ function OrthotropicElasticParameters(;E1=nothing,
     @assert !(isnothing(nu23) && isnothing(nu32)) "Either nu23 or nu32 must be given!"
     @assert !(isnothing(nu31) && isnothing(nu13)) "Either nu31 or nu13 must be given!"
 
-    
+    ## νij/Ei = νji / Ej
     if isnothing(nu21)
         nu21 = nu12 * E2 / E1
     end
