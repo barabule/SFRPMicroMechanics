@@ -10,14 +10,21 @@
 Effective stiffness matrix (Voigt 6x6 form) for matrix and fiber
 """
 function compute_orthotropic_properties(matrix_props::IsotropicElasticParameters,
-                                        fiber_props::AbstractElasticParameters;
+                                        fiber_props<:AbstractElasticParameters;
                                         volume_fraction = 0.2,
+                                        mass_fraction = nothing,
+                                        density_fiber = 1.0,
+                                        density_matrix = 1.0,
                                         aspect_ratio = 10.0,
                                         orientation_tensor=OrientationTensor(0.7, 0.3),
                                         )
 
     Cm = stiffness_matrix_voigt(matrix_props)
     Cf = stiffness_matrix_voigt(fiber_props)
+    
+    if !isnothing(mass_fraction) #overwrite volume fraction
+        volume_fraction = calc_vol_fraction(mass_fraction, density_fiber, density_matrix)
+    end
     
     C_aligned = mori_tanaka(Cm, Cf, volume_fraction, aspect_ratio, matrix_props.nu) 
     C_averaged = orientation_average(C_aligned, orientation_tensor)
@@ -36,38 +43,83 @@ function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
 end
 
 
-# Full Analytical Eshelby Tensor for Prolate Spheroids
-function eshelby_tensor_prolate(nu_m, AR)
+
+function eshelby_tensor_spheroid(nu_m, AR)
     S = @MMatrix zeros(6, 6)
-    # Numerical safety for spheres
-    θ = AR <= 1.0 ? 1.0001 : AR
-    g = (θ / (θ^2 - 1)^1.5) * (θ * sqrt(θ^2 - 1) - acosh(θ))
     
-    S1111 = (1 / (2*(1-nu_m))) * (1 - 2nu_m + (3θ^2 - 1)/(θ^2 - 1) - (1 - 2nu_m + 3θ^2/(θ^2-1))*g)
-    S2222 = (3 / (8*(1-nu_m))) * (θ^2/(θ^2-1)) + (1 / (4*(1-nu_m))) * (1 - 2nu_m - 9/(4*(θ^2-1)))*g
-    S3333 = S2222
-    S1122 = (1 / (2*(1-nu_m))) * (- (θ^2/(θ^2-1)) + (1 - 2nu_m + 3/(2*(θ^2-1)))*g)
-    S2233 = (1 / (8*(1-nu_m))) * (θ^2/(θ^2-1) - (1 - 2nu_m + 3/(4*(θ^2-1)))*g)
-    S2211 = (1 / (4*(1-nu_m))) * (- (θ^2/(θ^2-1)) + (3θ^2/(θ^2-1) - (1-2nu_m))*g)
-    S1212 = (1 / (4*(1-nu_m))) * (1 - 2nu_m - (θ^2+1)/(θ^2-1) - 0.5*(1 - 2nu_m - 3*(θ^2+1)/(θ^2-1))*g)
-    S2323 = (1 / (8*(1-nu_m))) * (θ^2/(θ^2-1) + (1 - 2nu_m - 3/(4*(θ^2-1)))*g)
+    if AR ≈ 1.0
+        # --- SPHERICAL CASE ---
+        s_diag = (7 - 5*nu_m) / (15 * (1 - nu_m))
+        s_off  = (5*nu_m - 1) / (15 * (1 - nu_m))
+        s_shear = (4 - 5*nu_m) / (15 * (1 - nu_m))
+        
+        S[1,1]=S[2,2]=S[3,3] = s_diag
+        S[1,2]=S[1,3]=S[2,1]=S[2,3]=S[3,1]=S[3,2] = s_off
+        S[4,4]=S[5,5]=S[6,6] = 2 * s_shear
+        
+    else
+        # --- SPHEROIDAL CASES (Prolate & Oblate) ---
+        θ = AR
+        if θ > 1.0
+            # Prolate (Fibers/Needles)
+            g = (θ / (θ^2 - 1)^1.5) * (θ * sqrt(θ^2 - 1) - acosh(θ))
+        else
+            # Oblate (Disks/Flakes)
+            g = (θ / (1 - θ^2)^1.5) * (acos(θ) - θ * sqrt(1 - θ^2))
+        end
+        
+        # Common terms for spheroidal symmetry (1-axis is the symmetry axis)
+        S1111 = (1 / (2*(1-nu_m))) * (1 - 2nu_m + (3θ^2 - 1)/(θ^2 - 1) - (1 - 2nu_m + 3θ^2/(θ^2-1))*g)
+        S2222 = (3 / (8*(1-nu_m))) * (θ^2/(θ^2-1)) + (1 / (4*(1-nu_m))) * (1 - 2nu_m - 9/(4*(θ^2-1)))*g
+        S3333 = S2222
+        S1122 = (1 / (2*(1-nu_m))) * (- (θ^2/(θ^2-1)) + (1 - 2nu_m + 3/(2*(θ^2-1)))*g)
+        S2233 = (1 / (8*(1-nu_m))) * (θ^2/(θ^2-1) - (1 - 2nu_m + 3/(4*(θ^2-1)))*g)
+        S2211 = (1 / (4*(1-nu_m))) * (- (θ^2/(θ^2-1)) + (3θ^2/(θ^2-1) - (1-2nu_m))*g)
+        S1212 = (1 / (4*(1-nu_m))) * (1 - 2nu_m - (θ^2+1)/(θ^2-1) - 0.5*(1 - 2nu_m - 3*(θ^2+1)/(θ^2-1))*g)
+        S2323 = (1 / (8*(1-nu_m))) * (θ^2/(θ^2-1) + (1 - 2nu_m - 3/(4*(θ^2-1)))*g)
+        
+        # Map to 6x6 Voigt Matrix
+        S[1,1]=S1111; S[2,2]=S[3,3]=S2222
+        S[1,2]=S[1,3]=S1122; S[2,1]=S[3,1]=S2211; S[2,3]=S[3,2]=S2233
+        S[4,4]=2S2323; S[5,5]=S[6,6]=2S1212
+    end
     
-    S[1,1]=S1111; S[2,2]=S3333; S[3,3]=S3333
-    S[1,2]=S[1,3]=S1122; S[2,1]=S[3,1]=S2211; S[2,3]=S[3,2]=S2233
-    S[4,4]=2S2323; S[5,5]=S[6,6]=2S1212
     return SMatrix{6,6}(S...)
 end
 
-# Mori-Tanaka Aligned Homogenization
-function mori_tanaka(Cm, Cf, vf, AR, nu_m)
-    I6 = Matrix{eltype(Cm)}(I, 6, 6)
-    S = eshelby_tensor_prolate(nu_m, AR)
-    #dilute concentration tensor
-    A_dil = inv(I6 + S * (inv(Cm) * (Cf - Cm)))
-    A_MT = A_dil * inv((1 - vf) * I6 + vf * A_dil)
-    return Cm + vf * (Cf - Cm) * A_MT
-end
 
+
+# Mori-Tanaka Aligned Homogenization
+# function mori_tanaka(Cm, Cf, vf, AR, nu_m)
+#     I6 = Matrix{eltype(Cm)}(I, 6, 6)
+#     S = eshelby_tensor_spheroid(nu_m, AR)
+#     #dilute concentration tensor
+#     A_dil = inv(I6 + S * (inv(Cm) * (Cf - Cm)))
+#     A_MT = A_dil * inv((1 - vf) * I6 + vf * A_dil)
+#     return Cm + vf * (Cf - Cm) * A_MT
+# end
+
+function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m)
+    T = eltype(Cm)
+    I = SMatrix{6,6, T}(LinearAlgebra.I)
+    
+    S = eshelby_tensor_spheroid(nu_m, AR)
+    # 1. Calculate the Dilute Concentration Tensor (A_dilute)
+    # A_dilute = [I + S * inv(Cm) * (Cf - Cm)]^-1
+    # This accounts for the strain in a single fiber relative to the matrix
+    
+    # Note: inv(Cm) * (Cf - Cm) is effectively the difference in compliance
+    A_dilute = inv(I + S * (inv(Cm) * (Cf - Cm)))
+    
+    # 2. Apply the Mori-Tanaka interaction term
+    # This accounts for the "crowding" of fibers as f increases
+    term1 = vf * (Cf - Cm) * A_dilute
+    term2 = inv((1 - vf) * I + vf * A_dilute)
+    
+    C_eff = Cm + term1 * term2
+    
+    return SMatrix{6,6}(C_eff)
+end
 
 #kron delta
 @inline function δ(i, j) 

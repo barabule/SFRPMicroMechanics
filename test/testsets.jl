@@ -12,6 +12,17 @@
     @test isapprox(props.G12, Em / (2*(1+num)), atol=1e-1)
 end
 
+@testset "Eshelby Tensor" verbose = true begin
+    AR = 1e6 #S1111 -> 0 when AR-> Inf
+    S  = SFRPMicroMechanics.eshelby_tensor_spheroid(0.3, AR)
+    @test S[1,1] <= sqrt(eps(Float64))
+    
+    AR = 1e-10 #S1111 -> 1 when AR-> 0
+    S = SFRPMicroMechanics.eshelby_tensor_spheroid(0.3, AR)
+    @test S[1,1] ≈ 1
+end
+
+
 @testset "Anisotropic Properties" verbose = true begin
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
     props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
@@ -21,6 +32,32 @@ end
     
     
 end
+
+@testset "Extracted Props" verbose = true begin
+    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = 10.0,
+                                                        E2 = 1.0,
+                                                        E3 = 0.9,
+                                                        G12 = 0.5,
+                                                        G23 = 0.7,
+                                                        G31 = 0.3,
+                                                        nu21 = 0.05,
+                                                        nu32 = 0.2,
+                                                        nu31 = 0.1)
+    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    pex = SFRPMicroMechanics.extract_orthotropic_constants(Cm)
+
+    @test p.E1 ≈ pex.E1
+    @test p.E2 ≈ pex.E2
+    @test p.E3 ≈ pex.E3
+    @test p.G12 ≈ pex.G12
+    @test p.G23 ≈ pex.G23
+    @test p.G31 ≈ pex.G31
+    @test p.nu21 ≈ pex.nu21
+    @test p.nu31 ≈ pex.nu31
+    @test p.nu32 ≈ pex.nu32
+
+end
+
 
     
 @testset "Spherical Inclusion Limit" verbose = true begin

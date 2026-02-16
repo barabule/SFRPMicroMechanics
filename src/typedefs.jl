@@ -2,7 +2,7 @@
 
 abstract type AbstractElasticParameters end
 
-struct IsotropicElasticParameters{T<:Real}
+struct IsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
     E_modulus::T
     nu::T
     function IsotropicElasticParameters(E, nu)
@@ -14,7 +14,7 @@ struct IsotropicElasticParameters{T<:Real}
 end
 
 
-struct OrthotropicElasticParameters{T<:Real}
+struct OrthotropicElasticParameters{T<:Real}<:AbstractElasticParameters
     E1::T
     E2::T
     E3::T
@@ -36,6 +36,14 @@ struct OrthotropicElasticParameters{T<:Real}
     end
 end
 
+
+function Base.show(io::IO, ::MIME"text/plain", p::T) where T<:AbstractElasticParameters
+    println(io, "Elastic Constants:")
+    for field in fieldnames(T)
+        value = getfield(p, field)
+        println(io, "  $field = $value")
+    end
+end
 
 function OrthotropicElasticParameters(;E1=nothing,
                                        E2=nothing,
@@ -75,8 +83,8 @@ function OrthotropicElasticParameters(;E1=nothing,
     return OrthotropicElasticParameters(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
 end
 
-function stiffness_matrix_voigt(elastic_parameters::IsotropicElasticParameters)
-    E, nu = elastic_parameters
+function stiffness_matrix_voigt(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
     return isotropic_stiffness(E, nu)
 end
 
@@ -104,7 +112,8 @@ end
 calc_vol_fraction(w_f, rho_f, rho_m)
 Converts fiber weight fraction (e.g., 0.30 for 30% GF) to volume fraction.
 """
-function calc_vol_fraction(w_f, rho_f, rho_m)
+function calc_vol_fraction(mass_fraction, rho_f, rho_m)
+    w_f = mass_fraction
     v_f = (w_f / rho_f) / (w_f / rho_f + (1 - w_f) / rho_m)
     return v_f
 end
@@ -126,17 +135,17 @@ end
 
 
 # Extract 9 Orthotropic Constants from Stiffness
-function extract_orthotropic_constants(C_66)
+function extract_orthotropic_constants(C_66::AbstractMatrix)
+    @assert size(C_66) == (6,6) "Voigt matrix must be size 6x6!"
     S = inv(C_66) #compliance
+
     E1, E2, E3 = 1/S[1,1], 1/S[2,2], 1/S[3,3]
+
     G23, G31, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
     nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
     return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
    
 end
-
-
-
 
 
 

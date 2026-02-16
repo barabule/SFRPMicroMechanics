@@ -163,7 +163,7 @@ function compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
     Cm = isotropic_stiffness(Em, num)
     Cf = isotropic_stiffness(Ef, nuf)
     I6 = Matrix{Float64}(I, 6, 6)
-    S_eshelby = eshelby_tensor_prolate(num, AR)
+    S_eshelby = eshelby_tensor_spheroid(num, AR)
     
     # 2. MT Concentration Tensor
     Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))
@@ -235,7 +235,7 @@ end
     
 #     for f in fibers
 #         Cf_i = stiffness_matrix_voigt(f)
-#         S_i = eshelby_tensor_prolate(nu_m, f[:AR])
+#         S_i = eshelby_tensor_spheroid(nu_m, f[:AR])
         
         
 #         Adil_i = inv(I6 + S_i * (inv(Cm) * (Cf_i - Cm)))
