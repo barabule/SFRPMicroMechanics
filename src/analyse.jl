@@ -5,29 +5,34 @@ apparent_modulus(theta_deg, p)
 Calculates the Young's Modulus at an angle theta (degrees) 
 relative to the 1-axis.
 """
-function apparent_modulus(theta_deg, p)
-    θ = deg2rad(theta_deg)
-    s = sin(θ)
-    c = cos(θ)
-    
+function apparent_modulus(theta_deg, p::OrthotropicElasticParameters)
+    θ = theta_deg
+    s = sind(θ)
+    c = cosd(θ)
+    #nu12/E2 = nu21/E1
+    E1 = p.E1
+    E2 = p.E2
+    nu12 = p.nu21 * E2 / E1
+    G12 = p.G12
     # Off-axis compliance calculation
-    inv_E_theta = (c^4 / p["E1"]) + 
-        ( (1/p["G12"]) - (2*p["nu12"]/p["E1"]) ) * (s^2 * c^2) + 
-            (s^4 / p["E2"])
+    inv_E_theta = (c^4 / E1) + 
+        ( (1/G12) - (2*nu12/E1) ) * (s^2 * c^2) + 
+            (s^4 / E2)
         
         return 1.0 / inv_E_theta
 end
     
     
 """
-apparent_modulus_3d(phi_deg, theta_deg, C_avg_66)
+    apparent_modulus_3d(phi_deg, theta_deg, p::OrthotropicElasticParameters)
 
 Calculates the Young's Modulus in 3D space.
 - phi_deg: Inclination from the 3-axis (0 to 180)
 - theta_deg: Azimuth from the 1-axis in the 1-2 plane (0 to 360)
-- C_avg_66: The 6x6 Voigt stiffness matrix from the module
+- p - orthotropic elastic constants
 """
-function apparent_modulus_3d(phi_deg, theta_deg, C_avg_66)
+function apparent_modulus_3d(phi_deg, theta_deg, p::OrthotropicElasticParameters)
+    C_avg_66 = stiffness_matrix_voigt(p)
     # 1. Convert C to 4th-order compliance S_ijkl
     S_66 = inv(C_avg_66)
     
@@ -70,7 +75,8 @@ generate_stiffness_mesh(C_avg_66; resolution=50)
 Generates a (nodes, faces) tuple for GLMakie.
 - resolution: Number of points for theta and phi.
 """
-function generate_stiffness_mesh(C_avg_66; resolution=60)
+function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
+    C_avg_66 = stiffness_matrix_voigt(p)
     # Define angles
     phi = range(0, stop=π, length=resolution)      # Inclination
     theta = range(0, stop=2π, length=resolution)    # Azimuth

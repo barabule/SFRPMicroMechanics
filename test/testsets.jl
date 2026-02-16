@@ -84,3 +84,22 @@ end
     # Explanation: Micromechanics models must respect thermodynamic bounds.
 
 end
+
+@testset "Apparent Elastic Modulus" verbose = true begin
+
+    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = 10.0,
+                                                        E2 = 3.5,
+                                                        E3 = 1.5,
+                                                        G12 = 5.0,
+                                                        G23 = 3.5,
+                                                        G31 = 1.8,
+                                                        nu21 = 0.2,
+                                                        nu32 = 0.25,
+                                                        nu31 = 0.1)
+
+    angle = 0.0
+    @test SFRPMicroMechanics.apparent_modulus(angle, p) ≈ p.E1
+    angle = 90.0
+    @test SFRPMicroMechanics.apparent_modulus(angle, p) ≈ p.E2
+
+end
