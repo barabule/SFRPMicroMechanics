@@ -8,6 +8,7 @@ using StaticArrays
 
 # Include sub-modules
 include("typedefs.jl")
+include("utils.jl")
 include("homogenization.jl")
 include("analyse.jl")
 
