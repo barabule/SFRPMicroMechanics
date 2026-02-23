@@ -1,28 +1,18 @@
-function linear_closure(a2; N = 3)
+function linear_closure(a2)
     
-    S1(i, j, k, l) = 1/3 * (δ(i, j) * δ(k, l) + δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
-
-    S2(i, j, k, l) = 1/6 * (δ(i, j) * a2[k, l] +
-                            δ(k, l) * a2[i, j] + 
-                            δ(i, k) * a2[j, l] + 
-                            δ(j, l) * a2[i, k] +
-                            δ(i, l) * a2[j, k] +
-                            δ(j, k) * a2[i, l])
-    
-    SArray{Tuple{3,3,3,3}}( 3 / ((4 + N) * (2 + N)) * S1(i,j,k,l) +
-                            6 / (4 + N) * S2(i, j, k, l)
+    SArray{Tuple{3,3,3,3}}( -1/35 * (δ(i, j) * δ(k, l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k) +
+                            1/7 * (δ(i, j) * a2[k, l] + 
+                                   δ(k, l) * a2[i, j] +
+                                   δ(i, k) * a2[j, l] +
+                                   δ(j, l) * a2[i, k] +
+                                   δ(i, l) * a2[j, k] + 
+                                   δ(j, k) * a2[i, l]))
                         for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 
 end
 
 function quadratic_closure(a2)
-    T = eltype(a2)
-    a4 = MArray{Tuple{3,3,3,3}}(zeros(T, 3, 3, 3, 3))
-
-    for i in 1:3, j in 1:3, k in 1:3, l in 1:3
-        a4[i, j, k, l] = a2[i, j] * a2[k, l]
-    end
-    return SArray{Tuple{3,3,3,3}}(a4)
+    return SArray{Tuple{3,3,3,3}}(a2[i,j] * a2[k, l] for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 end
 
 """
@@ -30,16 +20,13 @@ Computes the 4th-order orientation tensor using the Hybrid Closure approximation
 Balances Linear and Quadratic closures based on the degree of alignment.
 """
 function hybrid_closure(a2)
-    f = -0.5
-    for i in 1:3
-        for j in 1:3
-            f += 1.5 * a2[i, j] * a2[j, i]
-        end
-    end
+
+    f = 27 * det(a2)
+
     a4_l = linear_closure(a2)
     a4_q = quadratic_closure(a2)
 
-    return (1 - f) * a4_l + f * a4_q
+    return f * a4_l + (1 - f) * a4_q
 end
 
 

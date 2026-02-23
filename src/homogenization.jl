@@ -1,10 +1,3 @@
-#kron delta
-@inline function δ(i, j) 
-    i == j ? 1 : 0
-end
-
-
-
 
 """
     compute_orthotropic_properties(matrix_props::IsotropicElasticParameters,
@@ -120,19 +113,6 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m)
     
     return SMatrix{6,6}(C_eff)
 end
-
-
-
-
-
-function I4(T=Float64)
-
-    I4 = zeros(T, 3,3,3,3)
-    for i in 1:3, j in 1:3, k in 1:3, l in 1:3
-        I4[i,j,k,l] = 1/2 *(δ(i, j) * δ(j, l) + δ(i, l) * δ(j, k))
-    end
-end
-
 
 
 # Advani-Tucker Orientation Averaging

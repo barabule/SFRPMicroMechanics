@@ -1,3 +1,9 @@
+#kron delta
+@inline function δ(i, j) 
+    i == j ? 1 : 0
+end
+
+
 
 """
     convert_3333_to_66(tens)
