@@ -126,6 +126,28 @@ end
 ORW_closure(a::OrientationTensor) = wide_range_interaction_orthotropic_closure(a)
 
 
+function wide_range_interaction_orthotropic_closure_3rd_order(a::OrientationTensor)
+    a1, a2 = a.a11, a.a22
+
+    Ct = @SMatrix [ -0.1480648093    -0.2106349673     0.4868019601;
+                     0.8084618453     0.9092350296     0.5776328438;
+                     0.3722003446    -1.2840654776    -2.2462007509;
+                     0.7765597096     1.1104441966     0.4605743789;
+                    -1.3431772379     0.1260059291    -1.9088154281;
+                    -1.7366749542    -2.5375632310    -4.8900459209;
+                     0.8895946393     1.9988098293     4.0544348937;
+                     1.7367571741     1.4863151577     3.8542602127;
+                    -0.0324756095     0.5856304774     1.1817992322;
+                     0.6631716575    -0.0756740034     0.9512305286]
+    C = Ct'
+    ortho_poly_10_terms(a1, a2, C)
+end
+
+ORW3(a::OrientationTensor) = wide_range_interaction_orthotropic_closure_3rd_order(a)
+
+
+
+
 function ortho_poly_6(a1, a2, C)
     Aii = (C[m, 1] + C[m, 2] * a1 + C[m, 3] * a1 * a1 +
                      C[m, 4] * a2 + C[m, 5] * a2 * a2 +
@@ -133,6 +155,22 @@ function ortho_poly_6(a1, a2, C)
 
     return compute_eigenvalue_closure_matrix(a1, a2, Aii...)
 end
+
+function ortho_poly_10_terms(a1, a2, C)
+    @assert size(C) == (3, 10)
+
+    Aii = (C[m, 1] + C[m, 2] * a1 + C[m, 3] * a1 * a1 +
+                     C[m, 4] * a2 + C[m, 5] * a2 * a2 +
+                                    C[m, 6] * a1 * a2 +
+            C[m,  7] * a1 * a1 * a2 +
+            C[m,  8] * a1 * a2 * a2 +
+            C[m,  9] * a1 * a1 * a1 +
+            C[m, 10] * a2 * a2 * a2  )
+
+    return compute_eigenvalue_closure_matrix(a1, a2, Aii...)
+end
+
+
 
 
 function compute_eigenvalue_closure_matrix(a1, a2, A11, A22, A33)
