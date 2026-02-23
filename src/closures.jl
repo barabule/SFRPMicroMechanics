@@ -1,17 +1,18 @@
-function linear_closure(a)
-    T = eltype(a)
-    a4 = MArray{Tuple{3,3,3,3}}(zeros(T, 3, 3, 3, 3))
+function linear_closure(a2; N = 3)
+    
+    S1(i, j, k, l) = 1/3 * (δ(i, j) * δ(k, l) + δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
 
-    for i in 1:3, j in 1:3, k in 1:3, l in 1:3
-        # Linear Component
-        term1 = (δ(i,j)*δ(k,l) + δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k)) / 24.0
+    S2(i, j, k, l) = 1/6 * (δ(i, j) * a2[k, l] +
+                            δ(k, l) * a2[i, j] + 
+                            δ(i, k) * a2[j, l] + 
+                            δ(j, l) * a2[i, k] +
+                            δ(i, l) * a2[j, k] +
+                            δ(j, k) * a2[i, l])
+    
+    SArray{Tuple{3,3,3,3}}( 3 / ((4 + N) * (2 + N)) * S1(i,j,k,l) +
+                            6 / (4 + N) * S2(i, j, k, l)
+                        for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 
-        term2 = (a[i,j]*δ(k,l) + a[i,k]*δ(j,l) + a[i,l]*δ(j,k) + 
-                 a[k,l]*δ(i,j) + a[j,l]*δ(i,k) + a[j,k]*δ(i,l)) / 6.0
-        
-        a4[i,j,k,l] = -term1 + term2
-    end
-    return SArray{Tuple{3,3,3,3}}(a4)
 end
 
 function quadratic_closure(a2)
