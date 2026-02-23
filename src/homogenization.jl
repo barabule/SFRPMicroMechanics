@@ -92,7 +92,7 @@ function eshelby_tensor_spheroid(nu::T, ar::T) where T
 
     
 
-    return tens2eng(S; mandel = true)
+    return convert_3333_to_66(S; mandel = true)
 
 end
 

@@ -1,3 +1,14 @@
+@testset "Tensor Conversions" verbose = true begin
+    C = SFRPMicroMechanics.isotropic_stiffness(210.0, 0.3)
+    tens = SFRPMicroMechanics.convert_66_to_3333(C; mandel = false)
+    Cc = SFRPMicroMechanics.convert_3333_to_66(tens;mandel = false)
+    tensc = SFRPMicroMechanics.convert_66_to_3333(Cc; mandel = false)
+
+    @test all(C .≈ Cc)
+    @test all(tens .≈ tensc)
+
+
+end
 
 # @testset "SFRPMicroMechanics Physical Validation" verbose=true begin
 @testset "No Fibers" verbose = true begin
@@ -155,3 +166,5 @@ end
     
 
 end
+
+
