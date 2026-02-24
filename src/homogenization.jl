@@ -116,8 +116,8 @@ end
 
 
 # Advani-Tucker Orientation Averaging
-function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = false)
-
+function orientation_average(C_aligned, ot::OrientationTensor; closure = hybrid_closure, mandel = false)
+    a2 = to_matrix(ot)
     (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned)
     
     a4 = closure(a2)
@@ -128,7 +128,7 @@ function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = f
                                    B4 * (δ(i, j) * δ(k, l)) + 
                                    B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
                                    for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
-                                    
+
     return convert_3333_to_66(Cavg; mandel = false)
 end
 
@@ -142,6 +142,6 @@ function orientation_averaging_coefficients(C)
     B4 = C[2,3]
     B5 = 1/2 * (C[2,2] - C[2,3])
 
-    return (B1, B2, B3, B4, B5, B6)
+    return (B1, B2, B3, B4, B5)
 end
 
