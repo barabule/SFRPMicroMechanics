@@ -116,37 +116,32 @@ end
 
 
 # Advani-Tucker Orientation Averaging
-function orientation_average(C_aligned, a::OrientationTensor)
-    a_mat = to_matrix(a)
-    A4 = hybrid_closure(a_mat)
-    
-    # Extract Invariants from C_aligned (Assumes Axis 1 is longitudinal)
-    B1 = C_aligned[1,1] + C_aligned[3,3] - 2*C_aligned[2,3] - 4*C_aligned[5,5]
-    B2 = C_aligned[2,3] - C_aligned[1,2]
-    B3 = C_aligned[5,5] + 0.5*(C_aligned[1, 1] - C_aligned[1,2])
-    B4 = C_aligned[1, 2]
-    B5 = 0.5*(C_aligned[1,1] - C_aligned[1, 2])
-    
-    C_avg = @MMatrix zeros(6,6)
-    # Voigt Mapping: 1->(1,1), 2->(2,2), 3->(3,3), 4->(2,3), 5->(1,3), 6->(1,2)
-    v = [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
-    
-    # δ(i, j) = (i == j) ? 1.0 : 0.0
+function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = false)
 
-    for r in 1:6, c in 1:6
-        i,j = v[r]; k,l = v[c]
-        
-        # This is the general expression for <C>ijkl
-        val = B1 * A4[i,j,k,l] + 
-              B2 * (a_mat[i,j]*δ(k,l) + a_mat[k,l]*δ(i,j)) + 
-              B3 * (a_mat[i,k]*δ(j,l) + a_mat[i,l]*δ(j,k) +  a_mat[j,k]*δ(i,l)) + 
-              B4 * (δ(i,j)*δ(k,l)) + 
-              B5 * (δ(i,k)*δ(j,l) + δ(i,l)*δ(j,k))
-        
-        C_avg[r,c] = val
-    end
-    return SMatrix{6,6}(C_avg)
+    (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned)
+    
+    a4 = closure(a2)
+
+    Cavg = SArray{Tuple{3,3,3,3}}( B1 * a4[i, j, k, l] + 
+                                   B2 * (a2[i, j] * δ(k,l) + a2[k, l] * δ(i, j)) +
+                                   B3 * (a2[i, k] * δ(j, l) + a2[j, l] * δ(i, k) + a2[i,l] * δ(j, k) + a2[j, k] * δ(i, l)) +
+                                   B4 * (δ(i, j) * δ(k, l)) + 
+                                   B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
+                                   for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
+                                    
+    return convert_3333_to_66(Cavg; mandel = false)
 end
 
 
+
+function orientation_averaging_coefficients(C)
+    
+    B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
+    B2 = C[1,2] + C[2,2]
+    B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
+    B4 = C[2,3]
+    B5 = 1/2 * (C[2,2] - C[2,3])
+
+    return (B1, B2, B3, B4, B5, B6)
+end
 
