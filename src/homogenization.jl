@@ -115,6 +115,64 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m)
 end
 
 
+function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+
+    ζ1 = 2ar
+    η1 = (Ef/Em - 1)/ (Ef/Em + ζ1)
+
+    E11_UD= Em * (1 + ζ1 * η1 * vf) / (1 - ζ1 * η1)
+
+    nu12_UD = nu_f * vf + nu_m * (1 - vf)
+
+    ζ2 = 1
+    η2 = (Ef/Em - 1) / (Ef/Em + ζ2)
+
+    E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - ζ2 * η2)
+
+    ζ3 = 1
+    η3 = (Gf / Gm - 1) / (Gf / Gm + ζ3)
+    
+    Gf = Ef / (2 * (1 + nu_f))
+    Gm = Em / (2 * (1 + nu_m))
+
+    G31_UD = G12_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - ζ3 * η3)
+
+
+    ζ4 = (1 + nu_m) / (3 - nu_m - 4nu_m^2)
+    η4 = (Gf/Gm - 1) / (Gf/Gm + ζ4)
+    
+    G23_UD = Gm * (1 + ζ4 * η4 * vf) / (1 - ζ4 * η4)
+
+
+    nu23_UD = E22_UD / (2G23_UD) - 1
+
+    nu31_UD = (nu12_UD * E33_UD) / E11_UD
+
+    S11_UD = 1 / E11_UD
+    S22_UD = 1 / E22_UD
+    S33_UD = 1 / E33_UD
+    S12_UD = -nu12_UD / E11_UD
+    S13_UD = -nu31_UD / E33_UD
+    S23_UD = -nu23_UD / E22_UD
+    S44_UD = 1/G23_UD
+    S55_UD = 1/G31_UD
+    S66_UD = 1/G12_UD
+
+    S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0      0     0;
+                     S12_UD  S22_UD  S23_UD  0      0     0;
+                     S13_UD  S23_UD  S33_UD  0      0     0;
+                       0       0       0    S44_UD  0     0;
+                       0       0       0     0   S55_UD   0;
+                       0       0       0     0      0  S66_UD]  
+    return inv(S_UD)
+
+end
+
+
+
+
+
+
 # Advani-Tucker Orientation Averaging
 function orientation_average(C_aligned, ot::OrientationTensor; closure = hybrid_closure, mandel = false)
     a2 = to_matrix(ot)
