@@ -168,3 +168,21 @@ end
 end
 
 
+@testset "halpin tsai" verbose = true begin
+    Ef = 72.6
+    Em = 1.5
+    nu_f = 0.25
+    nu_m = 0.39
+    ar = 50
+    vf = 0.1
+    Cht = SFRPMicroMechanics.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+    display(Cht)
+    B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht)
+    Bref = (4680.46e-3, -18.18e-3, 16.97e-3, 2006.85e-3, 637.66e-3)
+
+    for i in 1:5
+        @info "B$i" B[i]
+        @test B[i] ≈ Bref[i]
+
+    end
+end

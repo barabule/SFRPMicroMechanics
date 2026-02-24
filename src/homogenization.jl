@@ -120,21 +120,20 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
     ζ1 = 2ar
     η1 = (Ef/Em - 1)/ (Ef/Em + ζ1)
 
-    E11_UD= Em * (1 + ζ1 * η1 * vf) / (1 - ζ1 * η1)
+    E11_UD = Em * (1 + ζ1 * η1 * vf) / (1 - ζ1 * η1)
 
     nu12_UD = nu_f * vf + nu_m * (1 - vf)
 
-    ζ2 = 1
+    ζ2 = 2
     η2 = (Ef/Em - 1) / (Ef/Em + ζ2)
 
     E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - ζ2 * η2)
 
     ζ3 = 1
-    η3 = (Gf / Gm - 1) / (Gf / Gm + ζ3)
-    
     Gf = Ef / (2 * (1 + nu_f))
     Gm = Em / (2 * (1 + nu_m))
-
+    η3 = (Gf / Gm - 1) / (Gf / Gm + ζ3)
+    
     G31_UD = G12_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - ζ3 * η3)
 
 
