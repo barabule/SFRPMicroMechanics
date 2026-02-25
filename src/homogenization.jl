@@ -46,46 +46,46 @@ end
 function eshelby_tensor_spheroid(nu::T, ar::T) where T
 
     
-
-    if ar ≈ 1 #sphere 
-        fac1 = 15 * (1 - nu)
+    return eshelby_tensor_ellipsoid(ar, nu)
+    # if ar ≈ 1 #sphere 
+    #     fac1 = 15 * (1 - nu)
         
-        S = SArray{Tuple{3,3,3,3}, T}( (1 / fac1 * (5nu - 1) * (δ(i, j) * δ(k, l)) + 
-                    (4 - 5nu) * (δ(i,k) * δ(j,l) + δ(i,l) * δ(j,k)))
-                    for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
+    #     S = SArray{Tuple{3,3,3,3}, T}( (1 / fac1 * (5nu - 1) * (δ(i, j) * δ(k, l)) + 
+    #                 (4 - 5nu) * (δ(i,k) * δ(j,l) + δ(i,l) * δ(j,k)))
+    #                 for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
         
-    else
+    # else
 
-        if ar > 1.0 # Prolate (Fibers)
+    #     if ar > 1.0 # Prolate (Fibers)
         
-            g = (ar / sqrt((ar^2 - 1.0)^3)) * (ar * sqrt(ar^2 - 1.0) - acosh(ar))
-        else
-            # Oblate (Disks)
-            g = (ar / sqrt((1.0 - ar^2)^3)) * (acos(ar) - ar * sqrt(1 - ar^2))
-        end
+    #         g = (ar / sqrt((ar^2 - 1.0)^3)) * (ar * sqrt(ar^2 - 1.0) - acosh(ar))
+    #     else
+    #         # Oblate (Disks)
+    #         g = (ar / sqrt((1.0 - ar^2)^3)) * (acos(ar) - ar * sqrt(1 - ar^2))
+    #     end
         
-        S = MArray{Tuple{3, 3, 3, 3},T}(zeros(3,3,3,3))
+    #     S = MArray{Tuple{3, 3, 3, 3},T}(zeros(3,3,3,3))
 
-        S[1,1,1,1] = 1 / (2 * (1 - nu)) * ( 1 - 2nu + (3ar^2 - 1) / (ar^2 - 1) - (1 - 2nu + 3ar / (ar^2 -1)) * g)
+    #     S[1,1,1,1] = 1 / (2 * (1 - nu)) * ( 1 - 2nu + (3ar^2 - 1) / (ar^2 - 1) - (1 - 2nu + 3ar / (ar^2 -1)) * g)
 
-        S[2,2,2,2] = S[3,3,3,3] = (3 / (8 * (1 - nu)) * ar^2 / (ar^2 -1)) * g 
+    #     S[2,2,2,2] = S[3,3,3,3] = (3 / (8 * (1 - nu)) * ar^2 / (ar^2 -1)) * g 
 
-        S[2,2,3,3] = S[3,3,2,2] = 1 / (4 * (1 - nu)) * (ar^2 / (ar^2 -1)) - (1 - 2nu + 3 / (4 * (ar^2 -1))) * g
+    #     S[2,2,3,3] = S[3,3,2,2] = 1 / (4 * (1 - nu)) * (ar^2 / (ar^2 -1)) - (1 - 2nu + 3 / (4 * (ar^2 -1))) * g
 
-        S[2,2,1,1] = S[3,3,1,1] = -1  / (2 * (1 - nu)) * ar^2 / (ar^2 - 1) + 1 / (4 * (1 - nu)) * (3 * ar^2 / (ar^2 - 1) - (1 - 2nu)) * g
+    #     S[2,2,1,1] = S[3,3,1,1] = -1  / (2 * (1 - nu)) * ar^2 / (ar^2 - 1) + 1 / (4 * (1 - nu)) * (3 * ar^2 / (ar^2 - 1) - (1 - 2nu)) * g
 
-        S[1, 1, 2, 2] = S[1, 1, 3, 3] = -1 / (2 * (1 - nu)) * (1 - 2nu + 1 / (ar^2 -1)) + 1/(2 * (1 - nu)) * (1 - 2nu + 3/(2 * (ar^2 -1))) * g
+    #     S[1, 1, 2, 2] = S[1, 1, 3, 3] = -1 / (2 * (1 - nu)) * (1 - 2nu + 1 / (ar^2 -1)) + 1/(2 * (1 - nu)) * (1 - 2nu + 3/(2 * (ar^2 -1))) * g
 
-        S[2, 3, 2, 3] = S[3, 2, 3, 2] = S[3, 2, 2, 3] = S[2, 3, 3, 2] = 1 / (4 * (1 - nu)) * (ar^2 / (2 * (ar^2 - 1)))
+    #     S[2, 3, 2, 3] = S[3, 2, 3, 2] = S[3, 2, 2, 3] = S[2, 3, 3, 2] = 1 / (4 * (1 - nu)) * (ar^2 / (2 * (ar^2 - 1)))
 
-        S[1,2,1,2 ] = S[1,3,1,3] = S[2,1,2,1] = S[2,1,1,2] = S[1,2,2,1] = S[3,1,3,1] = S[3,1,1,3] = S[1,3,3,1] =
-            1 / (4 * (1 - nu)) * (1 - 2nu - (ar^2 + 1) / (ar^2 -1) - 1/2 * (1 - 2nu - 3 * (ar^2 + 1) / (ar^2 -1)) * g)
+    #     S[1,2,1,2 ] = S[1,3,1,3] = S[2,1,2,1] = S[2,1,1,2] = S[1,2,2,1] = S[3,1,3,1] = S[3,1,1,3] = S[1,3,3,1] =
+    #         1 / (4 * (1 - nu)) * (1 - 2nu - (ar^2 + 1) / (ar^2 -1) - 1/2 * (1 - 2nu - 3 * (ar^2 + 1) / (ar^2 -1)) * g)
 
-    end
+    # end
 
     
 
-    return convert_3333_to_66(S; mandel = true)
+    # return convert_3333_to_66(S; mandel = true)
 
 end
 
@@ -94,7 +94,7 @@ function eshelby_tensor_sphere(nu)
     fac = 15 * (1 - nu)
     
 
-    S = SArray{3,3,3,3}(1/fac * (5nu - 1) * δ(i, j) * δ(k, l) +
+    S = SArray{Tuple{3,3,3,3}}(1/fac * (5nu - 1) * δ(i, j) * δ(k, l) +
                      (4 - 5nu) * (δ(i,k) * δ(j, l) + δ(i,l) * δ(j,k))
                      for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
     return convert_3333_to_66(S; mandel = true)

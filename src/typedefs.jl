@@ -45,9 +45,9 @@ function Base.show(io::IO, ::MIME"text/plain", p::T) where T<:AbstractElasticPar
     end
 end
 
-function OrthotropicElasticParameters(;E1=nothing,
-                                       E2=nothing,
-                                       E3=nothing,
+function OrthotropicElasticParameters(;E1 = nothing,
+                                       E2 = nothing,
+                                       E3 = nothing,
                                        nu12 = nothing,
                                        nu21 = nothing,
                                        nu13 = nothing,
