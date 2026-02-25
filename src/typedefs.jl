@@ -43,6 +43,14 @@ function Base.show(io::IO, ::MIME"text/plain", p::T) where T<:AbstractElasticPar
         value = getfield(p, field)
         println(io, "  $field = $value")
     end
+    if isa(p, OrthotropicElasticParameters)
+        nu12 = p.nu21 * p.E1 / p.E2
+        nu13 = p.nu31 * p.E1 / p.E3
+        nu23 = p.nu32 * p.E2 / p.E3
+        println("  nu12 = $nu12")
+        println("  nu13 = $nu13")
+        println("  nu23 = $nu23")
+    end
 end
 
 function OrthotropicElasticParameters(;E1 = nothing,
@@ -143,6 +151,7 @@ function extract_orthotropic_constants(C_66::AbstractMatrix)
 
     G23, G31, G12 = 1/S[4,4], 1/S[5,5], 1/S[6,6]
     nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
+    
     return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
    
 end
