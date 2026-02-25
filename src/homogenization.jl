@@ -120,27 +120,27 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
     ζ1 = 2ar
     η1 = (Ef/Em - 1)/ (Ef/Em + ζ1)
 
-    E11_UD = Em * (1 + ζ1 * η1 * vf) / (1 - ζ1 * η1)
-
+    E11_UD = Em * (1 + ζ1 * η1 * vf) / (1 - η1 * vf)
+    @info "E11 $E11_UD"
     nu12_UD = nu_f * vf + nu_m * (1 - vf)
 
     ζ2 = 2
     η2 = (Ef/Em - 1) / (Ef/Em + ζ2)
 
-    E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - ζ2 * η2)
-
+    E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - η2 * vf)
+    @info "E22 $E22_UD"
     ζ3 = 1
     Gf = Ef / (2 * (1 + nu_f))
     Gm = Em / (2 * (1 + nu_m))
     η3 = (Gf / Gm - 1) / (Gf / Gm + ζ3)
     
-    G31_UD = G12_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - ζ3 * η3)
+    G31_UD = G12_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - η3 * vf)
 
 
     ζ4 = (1 + nu_m) / (3 - nu_m - 4nu_m^2)
     η4 = (Gf/Gm - 1) / (Gf/Gm + ζ4)
     
-    G23_UD = Gm * (1 + ζ4 * η4 * vf) / (1 - ζ4 * η4)
+    G23_UD = Gm * (1 + ζ4 * η4 * vf) / (1 - η4 * vf)
 
 
     nu23_UD = E22_UD / (2G23_UD) - 1
@@ -163,7 +163,7 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
                        0       0       0    S44_UD  0     0;
                        0       0       0     0   S55_UD   0;
                        0       0       0     0      0  S66_UD]  
-    return inv(S_UD)
+    return (inv(S_UD), (;E11_UD, E22_UD, G12_UD, G23_UD, nu12_UD, nu23_UD))
 
 end
 
@@ -194,7 +194,7 @@ end
 function orientation_averaging_coefficients(C)
     
     B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
-    B2 = C[1,2] + C[2,2]
+    B2 = C[1,2] - C[2,3]
     B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
     B4 = C[2,3]
     B5 = 1/2 * (C[2,2] - C[2,3])
