@@ -90,6 +90,84 @@ function eshelby_tensor_spheroid(nu::T, ar::T) where T
 end
 
 
+function eshelby_tensor_sphere(nu)
+    fac = 15 * (1 - nu)
+    
+
+    S = SArray{3,3,3,3}(1/fac * (5nu - 1) * δ(i, j) * δ(k, l) +
+                     (4 - 5nu) * (δ(i,k) * δ(j, l) + δ(i,l) * δ(j,k))
+                     for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
+    return convert_3333_to_66(S; mandel = true)
+end
+
+
+function eshelby_tensor_ellipsoid(ar, nu)
+    if ar ≈ 1
+         return eshelby_tensor_sphere(nu)
+    end
+
+    a = ar
+    a2 = a * a
+    if ar > 1
+        g = a / sqrt((a2 - 1)^3) * a * sqrt(a2 - 1) - acosh(a)
+    else
+        g = (ar / sqrt((1.0 - a2)^3)) * (acos(a) - a * sqrt(1 - a2))
+    end
+
+
+    S11 = 1 / (2 * (1 - nu)) * (1 - 2nu + (3a2 - 1)/(a2 - 1) - (1 - 2nu + 3a2/(a2 - 1)) * g)
+
+    S22 = S33 = 3/(8 * (1 - nu)) * a2 /(a2 - 1) + 1 / (4 * (1 - nu)) + (1 - 2nu - 9 / (4 * (a2 - 1))) * g
+
+    S23 =  1/ (4 * (1 - nu)) * (a2 / (2 * (a2 - 1)) - (1 - 2nu + 3 / (4 * (a2 - 1))) * g)
+
+    S12 = S13 = -1 / (2 * (1 - nu)) * (1 - 2nu + 1/(a2 -1)) + 1 / (2 * (1 - nu)) * (1 - 2nu + 3 / (2 * (a2 - 1))) * g
+
+    S44 = 1 / (4 * (1 - nu)) * (a2 / (2 * (a2 - 1)) + (1 - 2nu - 3 / (4 * (a2 - 1))) * g)
+
+    S66 = S55 = 1 / (4 * (1 - nu)) * (1 - 2nu - (a2 + 1) / (a2 - 1) - 1 / 2 * (1 - 2nu -3 * (a2 +1) / (a2 - 1)) * g)
+
+    return @SMatrix [S11 S12 S13  0    0   0;
+                     S12 S22 S23  0    0   0;
+                     S13 S23 S33  0    0   0;
+                      0   0   0  S44   0   0;
+                      0   0   0   0   S55  0;
+                      0   0   0   0    0  S66]
+
+end
+
+
+function eshelby_tensor_needle(ar, nu)
+    a = ar
+    a2 = a * a
+
+    prefac = 1 / (2 * (1 - nu))
+    fac1 = 1 / (a + 1)
+    fac2 = a / (a + 1)
+    fac3 = 1 - 2nu
+    fac4 = (a + 1)^2
+
+    S22 = prefac * ((1 + 2a)  / fac4 + fac3 * fac1)
+    S33 = prefac * ((a2 + 2a) / fac4 + fac3 * fac2)
+    S23 = prefac * (1 / fac4 - fac3 * fac1)
+    S31 = prefac * 2nu * fac2
+    S21 = prefac * 2nu * fac1
+    S32 = prefac * (a2 / fac4 - fac3 * fac2)
+    S44 = prefac * (a2 + 1) / (2 * fac4) + fac3 / 2
+    S55 = 1 / (2 * fac2)
+    S66 = 1 / (2 * fac1)
+    
+    return @SMatrix [S11 S21 S31   0   0   0;
+                     S21 S22 S23   0   0   0;
+                     S31 S32 S33   0   0   0;
+                      0   0   0   S44  0   0;
+                      0   0   0    0  S55  0;
+                      0   0   0    0   0  S66]
+
+end
+
+
+
 function mt_dilute_tensor(Cm, Cf, S)
     
     I = SMatrix{6,6}(LinearAlgebra.I)
