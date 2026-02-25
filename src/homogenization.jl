@@ -90,19 +90,21 @@ function eshelby_tensor_spheroid(nu::T, ar::T) where T
 end
 
 
-
+function mt_dilute_tensor(Cm, Cf, S)
+    
+    I = SMatrix{6,6}(LinearAlgebra.I)
+    # 1. Calculate the Dilute Concentration Tensor (A_dilute)
+    # A_dilute = [I + S * inv(Cm) * (Cf - Cm)]^-1
+    # This accounts for the strain in a single fiber relative to the matrix
+    return inv(I + S * (inv(Cm) * (Cf - Cm)))
+end
 
 function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m)
     T = eltype(Cm)
     I = SMatrix{6,6, T}(LinearAlgebra.I)
     
     S = eshelby_tensor_spheroid(nu_m, AR)
-    # 1. Calculate the Dilute Concentration Tensor (A_dilute)
-    # A_dilute = [I + S * inv(Cm) * (Cf - Cm)]^-1
-    # This accounts for the strain in a single fiber relative to the matrix
-    
-    # Note: inv(Cm) * (Cf - Cm) is effectively the difference in compliance
-    A_dilute = inv(I + S * (inv(Cm) * (Cf - Cm)))
+    A_dilute = mt_dilute_tensor(Cm, Cf, S)
     
     # 2. Apply the Mori-Tanaka interaction term
     # This accounts for the "crowding" of fibers as f increases
