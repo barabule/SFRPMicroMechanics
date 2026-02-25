@@ -10,6 +10,41 @@
 
 end
 
+@testset "Basic Stiffness Conversion" verbose = true begin
+    E, nu = 10.0, 0.3
+    p =SFRPMicroMechanics.IsotropicElasticParameters(E, nu)
+    C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    ct = SFRPMicroMechanics.extract_orthotropic_constants(C)
+    @test ct.E1 ≈ ct.E2 ≈ ct.E3 ≈ E
+    @test ct.nu21  ≈ ct.nu32 ≈ ct.nu31 ≈ nu
+    @test ct.G12 ≈ ct.G23 ≈ ct.G31 ≈ E/ (2 * (1 + nu))
+
+    E1, E2, E3 = 20.0, 6.0, 4.0
+    nu21 = 0.05 
+    nu32 = 0.1
+    nu31 = 0.25
+    G12 = 8.0
+    G23 = 6.4
+    G31 = 4.5
+    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1, E2, E3, nu21, nu32, nu31, G12, G23, G31) 
+    C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+
+    ct = SFRPMicroMechanics.extract_orthotropic_constants(C)
+
+    @test ct.E1 ≈ E1
+    @test ct.E2 ≈ E2
+    @test ct.E3 ≈ E3
+    @test ct.nu21 ≈ nu21
+    @test ct.nu32 ≈ nu32
+    @test ct.nu31 ≈ nu31
+    @test ct.G12 ≈ G12
+    @test ct.G23 ≈ G23
+    @test ct.G31 ≈ G31
+
+end
+
+
+
 # @testset "SFRPMicroMechanics Physical Validation" verbose=true begin
 @testset "No Fibers" verbose = true begin
     # Test 1: Zero fibers
@@ -26,6 +61,7 @@ end
 @testset "Eshelby Tensor" verbose = true begin
     AR = 1e6 #S1111 -> 0 when AR-> Inf
     S  = SFRPMicroMechanics.eshelby_tensor_spheroid(0.3, AR)
+    display(S)
     @test S[1,1] <= sqrt(eps(Float64))
     
     AR = 1e-10 #S1111 -> 1 when AR-> 0
