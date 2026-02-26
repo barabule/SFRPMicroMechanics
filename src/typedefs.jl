@@ -116,6 +116,19 @@ function isotropic_stiffness(E, nu)
 end
 
 
+
+function is_isotropic(C66)
+    μ = C66[4,4]
+    λ = C66[1,2]
+    C66iso = @SMatrix [λ+2μ   λ     λ     0   0   0;
+                      λ     λ+2μ  λ     0   0   0;
+                      λ     λ     λ+2μ  0   0   0;
+                      0     0     0     μ   0   0;
+                      0     0     0     0   μ   0;
+                      0     0     0     0   0   μ]
+    return all(C66 .≈  C66iso)
+end
+
 """
 calc_vol_fraction(w_f, rho_f, rho_m)
 Converts fiber weight fraction (e.g., 0.30 for 30% GF) to volume fraction.

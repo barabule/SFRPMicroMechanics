@@ -50,7 +50,8 @@ end
     # Test 1: Zero fibers
     #vf = 0
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.0, 15.0, 0.7, 0.25
-    props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    props = SFRPMicroMechanics.extract_orthotropic_constants(C)
     # @info props
     @test isapprox(props.E1, Em, atol=1e-2)
     @test isapprox(props.nu21, num, atol=1e-4)
@@ -72,7 +73,8 @@ end
 
 @testset "Anisotropic Properties" verbose = true begin
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
-    props = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    props = SFRPMicroMechanics.extract_orthotropic_constants(C)
     # @info props
     @test props.E1 > props.E2
     @test isapprox(props.E2, props.E3, rtol=1e-3)
@@ -115,12 +117,9 @@ end
     Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
     a11 = 0.7
     a22 = 0.25
-    res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    @info res
-    @test isapprox(res.E1, res.E2, rtol=0.01)
-    @test isapprox(res.E1, res.E3, rtol=0.01)
-    # Explanation: A sphere has no preferred direction. If E1 != E2, 
-    # the Eshelby tensor or the index mapping in Advani-Tucker is wrong.
+    Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    display(Ceff)
+    @test SFRPMicroMechanics.is_isotropic(Ceff)
 end
     
 @testset "Unidirectional (UD) Alignment" verbose = true begin
@@ -130,8 +129,8 @@ end
     Em, num, Ef, nuf = 2500.0, 0.3, 70e3, 0.2
     aspect_ratio = 10.0
     vf = 0.17
-    res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
-    
+    Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
+    res = props = SFRPMicroMechanics.extract_orthotropic_constants(Ceff)
     @test res.E1 > res.E2
     @test isapprox(res.E2, res.E3, rtol=1e-4)
     @test isapprox(res.nu21, res.nu31, rtol=1e-4)
@@ -145,10 +144,11 @@ end
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 10.0
     vf = 0.2
-    res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
-    
-    @test isapprox(res.E1, res.E2, rtol=0.01)
-    @test isapprox(res.E2, res.E3, rtol=0.01)
+    C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
+    @test SFRPMicroMechanics.is_isotropic(C)
+    # res = props = SFRPMicroMechanics.extract_orthotropic_constants(C)
+    # @test isapprox(res.E1, res.E2, rtol=0.01)
+    # @test isapprox(res.E2, res.E3, rtol=0.01)
     # Explanation: This tests the Hybrid Closure. At det(a) = 1/27, 
     # f should be 0, triggering the Linear Closure logic.
 end
@@ -160,7 +160,8 @@ end
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 1000.0
     vf = 0.2
-    res = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
+    C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
+    res = SFRPMicroMechanics.extract_orthotropic_constants(C)
     ROM_E1 = vf * Ef + (1 - vf) * Em
     @info "E1 computed = $(res.E1)"
     @info "Upper bound = $ROM_E1"

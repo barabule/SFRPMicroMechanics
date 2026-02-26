@@ -90,6 +90,8 @@ end
 
 ORF_closure(a::OrientationTensor) = fitted_orthotropic_closure(a)
 
+
+
 function low_interaction_orthotropic_closure(a::OrientationTensor)
     a1, a2 = a.a11, a.a22
 
@@ -185,4 +187,64 @@ function compute_eigenvalue_closure_matrix(a1, a2, A11, A22, A33)
                        0   0   0  A44  0   0;
                        0   0   0   0  A55  0;
                        0   0   0   0   0  A66]
+end
+
+
+function modified_fitted_orthotropic_closure(a::OrientationTensor)
+    a1, a2 = a.a11, a.a22
+    return compute_modified_eigenvalue_closure_matrix(a1, a2)
+    # Ct = @SMatrix [0.407328    0.124711   0.882617;
+    #               -0.236137   -0.389402  -1.446735;
+    #                0.817847    0.258844   0.559003;
+    #               -1.471783    0.086169  -1.157952;
+    #                1.084126    0.796080   0.288046;
+    #                1.367983    0.544992   0.822991]
+    # C = Ct'
+
+    # return ortho_poly_6(a1, a2, C)
+end
+
+ORFM_closure(a::OrientationTensor) = modified_fitted_orthotropic_closure(a)
+
+function compute_modified_eigenvalue_closure_matrix(a1, a2)
+    A23 = A44 = 0.2 - 0.2 * a1 - 0.2 * a2
+    A13 = A55 =  -0.082617 + 0.646735 * a1 - 0.559003 * a1 * a1 +
+                             0.357952 * a2 - 0.288046 * a2 * a2 -
+                                             0.822991 * a1 * a2
+    
+
+    A22 = 0.124711  - 0.389402 * a1 + 0.258844 * a1 * a1 +
+                      0.086169 * a2 + 0.796080 * a2 * a2 +
+                                    + 0.544992 * a1 * a2
+    a3 = 1 - a1 - a2
+    A33 = a3 - A13 - A23
+    A12 =  A66 = a2 - A22 - A23
+    A11 = a1 - A12 - A13
+
+    return  @SMatrix [A11 A12 A13  0   0   0;
+                      A12 A22 A23  0   0   0;
+                      A13 A23 A33  0   0   0;
+                       0   0   0  A44  0   0;
+                       0   0   0   0  A55  0;
+                       0   0   0   0   0  A66]
+
+end
+
+function eigenvalue_closure_rotation(a_full::FullOrientationTensor; eigenvalue_closure = ORF_closure)
+    a = to_matrix(a_full)
+    (lambda, Q) = eigen(a)
+    a1, a2 = lambda[3], lambda[2]
+    Q11, Q21, Q31 = Q[1,3], Q[2,3], Q[3,3]
+    Q12, Q22, Q32 = Q[1,2], Q[2,2], Q[3,2]
+    Q13, Q23, Q33 = Q[1,1], Q[2,1], Q[3,1]
+    
+    R = @SMatrix [Q11 * Q11  Q12 * Q12  Q13 * Q13    2Q12 * Q13     2Q11 * Q13         2Q11 * Q12;
+                  Q21 * Q21  Q22 * Q22  Q23 * Q23    2Q22 * Q23     2Q21 * Q23         2Q21 * Q22;
+                  Q31 * Q31  Q32 * Q32  Q33 * Q33    2Q31 * Q33     2Q31 * Q33         2Q31 * Q32;
+                  Q21 * Q31  Q22 * Q32  Q23 * Q33    Q22 * Q33 + Q23 * Q32  Q23 * Q31 + Q21 * Q33  Q21 * Q32 + Q22 * Q31;
+                  Q31 * Q11  Q32 * Q12  Q33 * Q13    Q32 * Q13 + Q33 * Q12  Q33 * Q11 + Q31 * Q13  Q31 * Q12 + Q32 * Q11;
+                  Q11 * Q21  Q12 * Q22  Q13 * Q23    Q12 * Q23 + Q13 * Q22  Q13 * Q21 + Q11 * Q23  Q11 * Q22 + Q12 * Q21]
+
+    A4bar = eigenvalue_closure(OrientationTensor(a1, a2))
+    return R * A4bar * R'
 end
