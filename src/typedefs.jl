@@ -169,9 +169,9 @@ function extract_orthotropic_constants(C_66::AbstractMatrix)
    
 end
 
+abstract type AbstractOrientationTensor end
 
-
-struct OrientationTensor{T<:Real}
+struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     a11::T
     a22::T
 
@@ -194,9 +194,9 @@ function to_matrix(A::OrientationTensor)
 end
 
 
-struct FullOrientationTensor{T<:Real}
+struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
     a1::T
-    a2::T
+    a2::T #a3 is not needed because a1 + a2+ a3 =1
     a4::T
     a5::T
     a6::T
@@ -208,6 +208,29 @@ struct FullOrientationTensor{T<:Real}
         new{T}(args...)
     end
 end
+
+function FullOrientationTensor(;a1 = nothing, a2 = nothing, a4 = nothing, a5 = nothing, a6 = nothing)
+    @assert !(isnothing(a1) || isnothing(a2) || isnothing(a4) || isnothing(a5) || isnothing(a6))
+    return FullOrientationTensor(a1, a2, a4, a5, a6)
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", p::T) where {T<:AbstractOrientationTensor}
+    println(io, "Orientation Tensor")
+    if isa(p, OrientationTensor)
+        println(io, "A1 = $(p.a11)")
+        println(io, "A2 = $(p.a22)")
+        println(io, "A2 = $(1 - p.a11 - p.a22)")
+    elseif isa(p, FullOrientationTensor)
+        println(io, "A1 = $(p.a1)")
+        println(io, "A2 = $(p.a2)")
+        println(io, "A3 = $(1 - p.a1 - p.a2)")
+        println(io, "A4 = $(p.a4)")
+        println(io, "A5 = $(p.a5)")
+        println(io, "A6 = $(p.a6)")
+    end
+end
+
 
 function to_matrix(a::FullOrientationTensor)
     return @SMatrix [a.a1 a.a6     a.a5;
