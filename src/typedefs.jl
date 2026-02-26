@@ -179,3 +179,30 @@ function to_matrix(A::OrientationTensor)
                                     0 a22 0;
                                     0  0  a33]))
 end
+
+
+struct FullOrientationTensor{T<:Real}
+    a1::T
+    a2::T
+    a4::T
+    a5::T
+    a6::T
+
+    function FullOrientationTensor(a1, a2, a4, a5, a6)
+        args= promote(a1, a2, a4, a5, a6)
+        T = eltype(args)
+        @assert 1-a1-a2>=0 "a1 +a2 must be <=1 !"
+        new{T}(args...)
+    end
+end
+
+function to_matrix(a::FullOrientationTensor)
+    return @SMatrix [a.a1 a.a6     a.a5;
+                     a.a6 a.a2     a.a4;
+                     a.a5 a.a4 (1- a.a1 - a.a2)]
+end
+
+function OrientationTensor(afull::FullOrientationTensor)
+    lambda = LinearAlgebra.eigvals(to_matrix(afull))
+    return OrientationTensor(lambda[3], lambda[2])
+end

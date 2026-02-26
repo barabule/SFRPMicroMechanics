@@ -205,6 +205,11 @@ end
 
 
 @testset "halpin tsai" verbose = true begin
+    """
+        values from "A comparatice study between fiber orientation closure approximations and a new orthotropic closure"
+        by Ahmad Al-Qudsi, Hakan Celik, Jonas Neuhaus, Christian Hopmann
+
+    """
     Ef = 72.6
     Em = 1.5
     nu_f = 0.25
@@ -212,7 +217,7 @@ end
     ar = 50
     vf = 0.1
     (Cht, constants) = SFRPMicroMechanics.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
-    display(Cht)
+    
     display(constants)
     B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht)
     Bref = (4680.46e-3, -18.18e-3, 16.97e-3, 2006.85e-3, 637.66e-3)
@@ -226,6 +231,63 @@ end
     el_const2 = SFRPMicroMechanics.extract_orthotropic_constants(Cht)
     display(el_const2)
     
+    (a1, a2, a3, a4, a5, a6) = (0.7171, 0.2389, 0.0439, -0.0043, 0.0068, -0.0165)
 
+    N2 =SFRPMicroMechanics.SMatrix{3,3}([a1 a6 a5;
+                                        a6 a2 a4;
+                                        a5 a4 a3])
+
+    N4 = SFRPMicroMechanics.convert_3333_to_66(
+                            SFRPMicroMechanics.HL2_closure(N2);mandel=true)
+    display(N4)
+
+    A11 = 0.6
+    A12 = 0.0955
+    A13 = 0.0217
+    A14 = -0.0015
+    A15 = 0.0049
+    A16 = -0.0084
+    A22 = 0.1343
+    A23 = 0.0091
+    A24 = -0.0019
+    A25 = 0.0009
+    A26 = -0.0072
+    A33 = 0.0131
+    A34 = -0.0009
+    A35 = 0.0009
+    A36 = -0.0009
+    A44 = 0.0091
+    A55  =0.0217
+    A66 = 0.0955
+    A45 = -0.0009
+    A46 = 0.0009
+    A56 = -0.0015
+
+    N4_ref = [A11 A12 A13 A14 A15 A16;
+              A12 A22 A23 A24 A25 A26;
+              A13 A23 A33 A34 A35 A36;
+              A14 A24 A34 A44 A45 A46;
+              A15 A25 A35 A45 A55 A56;
+              A16 A26 A36 A46 A56 A66]
+
+    closure = SFRPMicroMechanics.hybrid_closure
+    C_avg = SFRPMicroMechanics.orientation_average(Cht, N2; closure)
+    @info "Halpin Tsai"
+    display(Cht)
+    @info "Averaged global Cs"
+    display(C_avg)
+    el_const3 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg)
+    display(el_const3)
+
+    N2_mat = SFRPMicroMechanics.FullOrientationTensor(a1, a2, a4, a5, a6) |> 
+             SFRPMicroMechanics.OrientationTensor |>
+             SFRPMicroMechanics.to_matrix
+    C_avg_mat = SFRPMicroMechanics.orientation_average(Cht, N2_mat; closure)
+    display(C_avg_mat)
+    el_const4 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg_mat)
+    display(el_const4)
+    # for (a4ii, Aii) in zip(a4, A4_ref)
+    #     @test a4ii ≈ Aii atol=1e-3
+    # end
 
 end
