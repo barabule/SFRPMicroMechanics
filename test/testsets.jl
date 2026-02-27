@@ -61,13 +61,19 @@ end
 
 @testset "Eshelby Tensor" verbose = true begin
     AR = 1e6 #S1111 -> 0 when AR-> Inf
-    S  = SFRPMicroMechanics.eshelby_tensor_spheroid(0.3, AR)
+    nu = 0.3
+    shape =SFRPMicroMechanics.SpheroidalInclusion(nu, AR)
+    S  = SFRPMicroMechanics.eshelby_tensor(shape) |> SFRPMicroMechanics.convert_3333_to_66
     display(S)
     @test S[1,1] <= sqrt(eps(Float64))
     
     AR = 1e-10 #S1111 -> 1 when AR-> 0
-    S = SFRPMicroMechanics.eshelby_tensor_spheroid(0.3, AR)
+    shape = SFRPMicroMechanics.SpheroidalInclusion(nu, AR) 
+    S  = SFRPMicroMechanics.eshelby_tensor(shape) |> SFRPMicroMechanics.convert_3333_to_66
     @test S[1,1] ≈ 1
+    Slimit = SFRPMicroMechanics.ThinDiscInclusion(nu, AR) |> SFRPMicroMechanics.eshelby_tensor |> SFRPMicroMechanics.convert_3333_to_66
+    # @test all(Slimit .≈ S)
+    @test Slimit[1,1] ≈ S[1,1]
 end
 
 
@@ -118,7 +124,7 @@ end
     a11 = 0.7
     a22 = 0.25
     Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    display(Ceff)
+    display(Ceff) #almost isotropic...
     @test SFRPMicroMechanics.is_isotropic(Ceff)
 end
     
@@ -146,11 +152,7 @@ end
     vf = 0.2
     C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
     @test SFRPMicroMechanics.is_isotropic(C)
-    # res = props = SFRPMicroMechanics.extract_orthotropic_constants(C)
-    # @test isapprox(res.E1, res.E2, rtol=0.01)
-    # @test isapprox(res.E2, res.E3, rtol=0.01)
-    # Explanation: This tests the Hybrid Closure. At det(a) = 1/27, 
-    # f should be 0, triggering the Linear Closure logic.
+    
 end
 
 @testset "Bounds Check (Rule of Mixtures)" verbose = true begin
@@ -240,55 +242,98 @@ end
 
     N4 = SFRPMicroMechanics.convert_3333_to_66(
                             SFRPMicroMechanics.HL2_closure(N2);mandel=true)
-    display(N4)
+    # display(N4)
 
-    A11 = 0.6
-    A12 = 0.0955
-    A13 = 0.0217
-    A14 = -0.0015
-    A15 = 0.0049
-    A16 = -0.0084
-    A22 = 0.1343
-    A23 = 0.0091
-    A24 = -0.0019
-    A25 = 0.0009
-    A26 = -0.0072
-    A33 = 0.0131
-    A34 = -0.0009
-    A35 = 0.0009
-    A36 = -0.0009
-    A44 = 0.0091
-    A55  =0.0217
-    A66 = 0.0955
-    A45 = -0.0009
-    A46 = 0.0009
-    A56 = -0.0015
+    # A11 = 0.6
+    # A12 = 0.0955
+    # A13 = 0.0217
+    # A14 = -0.0015
+    # A15 = 0.0049
+    # A16 = -0.0084
+    # A22 = 0.1343
+    # A23 = 0.0091
+    # A24 = -0.0019
+    # A25 = 0.0009
+    # A26 = -0.0072
+    # A33 = 0.0131
+    # A34 = -0.0009
+    # A35 = 0.0009
+    # A36 = -0.0009
+    # A44 = 0.0091
+    # A55  =0.0217
+    # A66 = 0.0955
+    # A45 = -0.0009
+    # A46 = 0.0009
+    # A56 = -0.0015
 
-    N4_ref = [A11 A12 A13 A14 A15 A16;
-              A12 A22 A23 A24 A25 A26;
-              A13 A23 A33 A34 A35 A36;
-              A14 A24 A34 A44 A45 A46;
-              A15 A25 A35 A45 A55 A56;
-              A16 A26 A36 A46 A56 A66]
+    # N4_ref = [A11 A12 A13 A14 A15 A16;
+    #           A12 A22 A23 A24 A25 A26;
+    #           A13 A23 A33 A34 A35 A36;
+    #           A14 A24 A34 A44 A45 A46;
+    #           A15 A25 A35 A45 A55 A56;
+    #           A16 A26 A36 A46 A56 A66]
 
-    closure = SFRPMicroMechanics.hybrid_closure
-    C_avg = SFRPMicroMechanics.orientation_average(Cht, N2; closure)
-    @info "Halpin Tsai"
-    display(Cht)
-    @info "Averaged global Cs"
-    display(C_avg)
-    el_const3 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg)
-    display(el_const3)
+    # closure = SFRPMicroMechanics.hybrid_closure
+    # C_avg = SFRPMicroMechanics.orientation_average(Cht, N2; closure)
+    # @info "Halpin Tsai"
+    # display(Cht)
+    # @info "Averaged global Cs"
+    # display(C_avg)
+    # el_const3 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg)
+    # display(el_const3)
 
-    N2_mat = SFRPMicroMechanics.FullOrientationTensor(a1, a2, a4, a5, a6) |> 
-             SFRPMicroMechanics.OrientationTensor |>
-             SFRPMicroMechanics.to_matrix
-    C_avg_mat = SFRPMicroMechanics.orientation_average(Cht, N2_mat; closure)
-    display(C_avg_mat)
-    el_const4 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg_mat)
-    display(el_const4)
+    # N2_mat = SFRPMicroMechanics.FullOrientationTensor(a1, a2, a4, a5, a6) |> 
+    #          SFRPMicroMechanics.OrientationTensor |>
+    #          SFRPMicroMechanics.to_matrix
+    # C_avg_mat = SFRPMicroMechanics.orientation_average(Cht, N2_mat; closure)
+    # display(C_avg_mat)
+    # el_const4 = SFRPMicroMechanics.extract_orthotropic_constants(C_avg_mat)
+    # display(el_const4)
     # for (a4ii, Aii) in zip(a4, A4_ref)
     #     @test a4ii ≈ Aii atol=1e-3
     # end
 
+end
+
+
+@testset "Thermal Expansion" verbose = true begin
+    Em, num = 3.5, 0.35 
+    Cm = SFRPMicroMechanics.IsotropicElasticParameters(Em ,num) |> 
+         SFRPMicroMechanics.stiffness_matrix_voigt
+
+    alfa_m = 100e-6
+    cte_m = SFRPMicroMechanics.ThermalExpansion(alfa_m)
+
+    Ef, nuf = 75.0, 0.22
+    Cf = SFRPMicroMechanics.IsotropicElasticParameters(Ef, nuf) |>
+         SFRPMicroMechanics.stiffness_matrix_voigt
+
+    alfa_f = 5e-6
+    cte_f = SFRPMicroMechanics.ThermalExpansion(alfa_f)
+    AR = 50
+    Sf = SFRPMicroMechanics.SpheroidalInclusion(num, AR) |>
+         SFRPMicroMechanics.eshelby_tensor |>
+         SFRPMicroMechanics.convert_3333_to_66
+
+    vf = 0.2
+    """
+    matrix = (;stiffness = Cm, 
+                thermal_expansion = αm)
+    fiber_properties = (;stiffness = [Cfi],
+                        thermal_expansion = [αfi],
+                        eshelby_tensors = [Sfi],
+                        volume_fractions = [vfi])
+    """
+    matrix = (;stiffness = Cm,
+                thermal_expansion = cte_m
+                )
+    fibers = (;stiffness =[Cf],
+                thermal_expansion = [cte_f],
+                eshelby_tensors = [Sf],
+                volume_fractions = [vf]
+                )
+
+    cte_eff = SFRPMicroMechanics.ThermalExpansion(matrix, fibers)
+    display(cte_eff)
+    @test alfa_f < cte_eff.alpha1 < alfa_m
 end

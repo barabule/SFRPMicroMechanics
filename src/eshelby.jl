@@ -5,6 +5,8 @@ struct SphericalInclusion{T<:Real} <:InclusionGeometry
     nu::T # a1 = a2 = a3
 end
 
+SphericalInclusion(nu, AR) = SphericalInclusion(nu)
+
 struct SpheroidalInclusion{T<:Real} <:InclusionGeometry #ellypsoidal
     nu::T
     ar::T # ar = a1/a2, a2=a3
@@ -20,10 +22,12 @@ struct SpheroidalInclusion{T<:Real} <:InclusionGeometry #ellypsoidal
     end
 end
 
-struct NeedleInclusion{T<:Real} <: InclusionGeometry #thin cylinder
+struct NeedleInclusion{T<:Real} <: InclusionGeometry #thin cylinder with effectively infinite aspect ratio
     nu::T
     #ar::T #ar = a1 / a3 -> inf
 end
+
+NeedleInclusion(nu, AR) = NeedleInclusion(nu)
 
 struct DiscInclusion{T<:Real} <: InclusionGeometry # thick disc / cylinder
     nu::T
@@ -33,21 +37,22 @@ end
 struct ThinDiscInclusion{T<:Real} <: InclusionGeometry #infinitely thin cylinder
     nu::T # a/a3 -> 0
 end
-
+#convenience 
+ThinDiscInclusion(nu, AR) = ThinDiscInclusion(nu)
 
 function eshelby_tensor(geom::SpheroidalInclusion{T}) where T
     nu, a = geom.nu, geom.ar
-    if ar ≈ 1 #this should never happen
+    if a ≈ 1 #this should never happen
         return eshelby_tensor(SphericalInclusion(nu))
     end
     a2 = a * a
-    g = begin
-        if ar > 1 #prolate sphere
-            return a / sqrt((a2 - 1)^3) * (a * sqrt(a2 - 1) - acosh(a))
-        else #oblate 
-            return a / sqrt((a2 - 1)^3) * (acos(a) - a * sqrt(1 - a2))
-        end
+    
+    if a > 1 #prolate sphere
+        g = a / sqrt((a2 - 1)^3) * (a * sqrt(a2 - 1) - acosh(a))
+    else #oblate 
+        g = a / sqrt((1 - a2)^3) * (acos(a) - a * sqrt(1 - a2))
     end
+    
 
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
