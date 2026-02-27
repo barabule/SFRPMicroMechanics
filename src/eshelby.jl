@@ -22,7 +22,7 @@ end
 
 struct NeedleInclusion{T<:Real} <: InclusionGeometry #thin cylinder
     nu::T
-    ar::T #ar = a1 / a3 -> inf
+    #ar::T #ar = a1 / a3 -> inf
 end
 
 struct DiscInclusion{T<:Real} <: InclusionGeometry # thick disc / cylinder
@@ -53,18 +53,18 @@ function eshelby_tensor(geom::SpheroidalInclusion{T}) where T
 
     S[1,1,1,1] = 1 / (2 * (1 - nu)) * (1 - 2nu + (3a2 - 1)/ (a2 - 1) - (1 - 2nu + 3a2 / (a2 - 1)) * g)
 
-    S[2,2,2,2] = S[3,3,3,3] = 3/(8 * (1 -nu)) * a2 / (a2 - 1) + 1/ (4 * (1 - nu)) * (1 - 2nu - 9/(4 * (a2 - 1))) * g
+    S[2,2,2,2] = S[3,3,3,3] = 3 / (8 * (1 -nu)) * a2 / (a2 - 1) + 1/ (4 * (1 - nu)) * (1 - 2nu - 9/(4 * (a2 - 1))) * g
 
-    S[2,2,3,3] = S[3,3,2,2] = 1/ (4 * (1 - nu)) * (a2 / (2 * (a2 - 1)) - (1 - 2nu + 3/(4 * (a2 -1))) * g)
+    S[2,2,3,3] = S[3,3,2,2] = 1 / (4 * (1 - nu)) * (a2 / (2 * (a2 - 1)) - (1 - 2nu + 3/(4 * (a2 -1))) * g)
 
-    S[2,2,1,1] = S[3,3,1,1] = -1/(2 * (1 - nu)) * a2 / (a2 - 1) + 1/(4 * (1 - nu)) * (3a2 / (a2 - 1) - (1 - 2nu)) * g
+    S[2,2,1,1] = S[3,3,1,1] = -1 / (2 * (1 - nu)) * a2 / (a2 - 1) + 1/(4 * (1 - nu)) * (3a2 / (a2 - 1) - (1 - 2nu)) * g
 
-    S[1,1,2,2] = S[1,1,3,3] = -1/(2 * (1 - nu))  * (1 - 2nu + 1/ (a2 - 1)) +
-                               1/(2 * (1 - nu)) * (1 -2nu + 3 / (2 * (a2 - 1))) * g 
+    S[1,1,2,2] = S[1,1,3,3] = -1 / (2 * (1 - nu))  * (1 - 2nu + 1 / (a2 - 1)) +
+                               1 / (2 * (1 - nu)) * (1 -2nu + 3 / (2 * (a2 - 1))) * g 
 
     S[2,3,2,3] = S[3,2,3,2] = 1 / (4 * (1 - nu)) * (a2 / (2 * (a2 - 1)) + (1 - 2nu - 3/(4 * (a2 -1 ))) * g)
 
-    S[1,2,1,2] = S[1,3,1,3] = 1/(4 * (1 - nu)) * (1 -2nu - (a2 + 1)/ (a2 - 1) - 1/2 * (1 - 2nu  - 3 * (a2 - 1) / (a2 - 1)) * g)
+    S[1,2,1,2] = S[1,3,1,3] = 1/(4 * (1 - nu)) * (1 -2nu - (a2 + 1)/ (a2 - 1) - 1/2 * (1 - 2nu  - 3 * (a2 + 1) / (a2 - 1)) * g)
 
     return SArray{Tuple{3,3,3,3}, T}(S)
 end
@@ -90,7 +90,7 @@ function eshelby_tensor(geom::DiscInclusion{T}) where T
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
     S[1,1,1,1] = 1 - (1 - 2nu) / (4 * (1 - nu)) * pi * a
-    S[2,2,2,2] = S[3,3,3,3] = (13 - 8nu)/ (32 * (1- nu)) * pi * a
+    S[2,2,2,2] = S[3,3,3,3] = -(13 - 8nu) / (32 * (1- nu)) * pi * a
     S[2,2,3,3] = S[3,3,2,2] = (8nu - 1) / (32 * (1 - nu)) * pi * a
     S[2,2,1,1] = S[3,3,1,1] = (2nu - 1) / (8 * (1 - nu)) * pi * a
     S[1,1,2,2] = S[1,1,3,3] = nu / (1 - nu) * (1 - (1 + 4nu)/ (8nu) * pi * a)
@@ -112,7 +112,7 @@ end
 
 
 function eshelby_tensor(geom::NeedleInclusion{T}) where T
-    nu, a = geom.nu, geom.ar
+    nu = geom.nu
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
     S[1,1,1,1] = (1 - 2nu)/ (4 * (1 - nu))
