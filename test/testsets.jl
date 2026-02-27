@@ -64,7 +64,7 @@ end
     nu = 0.3
     shape =SFRPMicroMechanics.SpheroidalInclusion(nu, AR)
     S  = SFRPMicroMechanics.eshelby_tensor(shape) |> SFRPMicroMechanics.convert_3333_to_66
-    display(S)
+    # display(S)
     @test S[1,1] <= sqrt(eps(Float64))
     
     AR = 1e-10 #S1111 -> 1 when AR-> 0
@@ -125,6 +125,8 @@ end
     a22 = 0.25
     Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     display(Ceff) #almost isotropic...
+    elprops = SFRPMicroMechanics.extract_orthotropic_constants(Ceff)
+    display(elprops)
     @test SFRPMicroMechanics.is_isotropic(Ceff)
 end
     
