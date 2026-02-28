@@ -14,6 +14,7 @@ end
     E, nu = 10.0, 0.3
     p =SFRPMicroMechanics.IsotropicElasticParameters(E, nu)
     C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    @test SFRPMicroMechanics.is_isotropic(C) #dooh
     ct = SFRPMicroMechanics.extract_orthotropic_constants(C)
     @test ct.E1 ≈ ct.E2 ≈ ct.E3 ≈ E
     @test ct.nu21  ≈ ct.nu32 ≈ ct.nu31 ≈ nu
@@ -427,8 +428,8 @@ end
     end
 
     #test the hybrid closure element by element // also wrong
-    @info "N4 hybrid"
-    N4 = display(SFRPMicroMechanics.hybrid_closure(orientation_tensor))
+    # @info "N4 hybrid"
+    # N4 = display(SFRPMicroMechanics.hybrid_closure(orientation_tensor))
 
 
     inclusion = SFRPMicroMechanics.SpheroidalInclusion(nu_m, ar)
@@ -445,10 +446,10 @@ end
                     0              0              0               0           0       4.9480228e-1]
     # @info "S_homopy"
     # display(S_homopy)
-    # @test all(isapprox.(S, S_homopy, rtol=1e-4))
-    for (s, s_hom) in zip(S, S_homopy)
-        @test s ≈ s_hom atol=1e-4
-    end
+    @test all(isapprox.(S, S_homopy, rtol=1e-4))
+    # for (s, s_hom) in zip(S, S_homopy)
+    #     @test s ≈ s_hom atol=1e-4
+    # end
 
     #transverse isotropic fibers
 
@@ -485,8 +486,8 @@ end
                     fiber_shape = SpheroidalInclusion, 
                     mandel,
                     )
-    # @info "Ceff trans"
-    # display(Ceff)
+    @info "Ceff trans"
+    display(Ceff)
 
     Ceff_homopy = [29.92384992  2.21785213    2.21785213    0     0    0 ;
                     2.21785213  4.54152923    2.32401817    0     0    0 ;
@@ -495,8 +496,8 @@ end
                     0           0             0             0  2.30146776  0;
                     0           0             0             0      0   2.30146776]
 
-    # @info "Ceff_homopy trans"
-    # display(Ceff_homopy)
+    @info "Ceff_homopy trans"
+    display(Ceff_homopy)
 
     for (c, c_hom) in zip(Ceff, Ceff_homopy)
         @test c ≈ c_hom

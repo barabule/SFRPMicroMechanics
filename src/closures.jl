@@ -1,12 +1,12 @@
 function linear_closure(a2)
     
-    SArray{Tuple{3,3,3,3}}( -1/35 * (δ(i, j) * δ(k, l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k) +
+    SArray{Tuple{3,3,3,3}}( -1/35 * (δ(i, j) * δ(k, l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k)) +
                             1/7 * (δ(i, j) * a2[k, l] + 
                                    δ(k, l) * a2[i, j] +
                                    δ(i, k) * a2[j, l] +
                                    δ(j, l) * a2[i, k] +
                                    δ(i, l) * a2[j, k] + 
-                                   δ(j, k) * a2[i, l]))
+                                   δ(j, k) * a2[i, l])
                         for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 
 end
