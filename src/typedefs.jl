@@ -110,24 +110,71 @@ function isotropic_stiffness(E, nu; mandel = false)
     return @SMatrix [λ+2μ   λ     λ     0   0   0;
                       λ     λ+2μ  λ     0   0   0;
                       λ     λ     λ+2μ  0   0   0;
-                      0     0     0     f*μ   0   0;
-                      0     0     0     0   f*μ   0;
+                      0     0     0     f*μ 0   0;
+                      0     0     0     0   f*μ 0;
                       0     0     0     0   0   f*μ]
 end
 
 
+function is_structurally_isotropic(C66::AbstractMatrix)
+    if size(C66) != (6,6) 
+        return false
+    end
 
-function is_isotropic(C66;mandel = false)
-    μ = C66[4,4]
-    λ = C66[1,2]
-    f = mandel ? 2 : 1
-    C66iso = @SMatrix [λ+2μ   λ     λ     0   0   0;
-                      λ     λ+2μ  λ     0   0   0;
-                      λ     λ     λ+2μ  0   0   0;
-                      0     0     0     f*μ   0   0;
-                      0     0     0     0   f*μ   0;
-                      0     0     0     0   0   f*μ]
-    return all(C66 .≈  C66iso)
+    A = C66[1,1]
+    B = C66[1,2]
+    C = C66[4,4]
+    M = @SMatrix [A B B 0 0 0;
+                  B A B 0 0 0;
+                  B B A 0 0 0;
+                  0 0 0 C 0 0;
+                  0 0 0 0 C 0;
+                  0 0 0 0 0 C]
+
+    return all(M .≈ C66)
+end
+
+
+function is_isotropic(M::AbstractMatrix; tol=1e-9, mandel = false)
+    size(M) == (6, 6) || throw(ArgumentError("Matrix must be 6x6"))
+    
+    # 1. Check for symmetry (Isotropic tensors are major-symmetric)
+    if !isapprox(M, M', atol=tol)
+        return false
+    end
+
+    # 2. Extract key components
+    # Normal block (top-left 3x3)
+    diag_normal = [M[1,1], M[2,2], M[3,3]]
+    off_diag_normal = [M[1,2], M[1,3], M[2,3]]
+    
+    # Shear block (bottom-right 3x3)
+    diag_shear = [M[4,4], M[5,5], M[6,6]]
+    
+    # 3. Check for uniformity within blocks
+    # All diagonals of the normal block must be equal
+    all_equal_diag = all(x -> isapprox(x, diag_normal[1], atol=tol), diag_normal)
+    # All off-diagonals of the normal block must be equal
+    all_equal_off = all(x -> isapprox(x, off_diag_normal[1], atol=tol), off_diag_normal)
+    # All shear terms must be equal
+    all_equal_shear = all(x -> isapprox(x, diag_shear[1], atol=tol), diag_shear)
+    
+    # 4. Check for zeros in coupling terms (off-diagonal blocks)
+    # The 3x3 top-right and bottom-left blocks must be zero
+    off_block_is_zero = isapprox(norm(M[1:3, 4:6]), 0, atol=tol) && 
+                        isapprox(norm(M[4:6, 1:3]), 0, atol=tol)
+
+    # 5. Check the Isotropy Relation
+    # For Mandel: M44 = M11 - M12
+    # For Voigt:  M44 = (M11 - M12) / 2
+    rel_check = false
+    if mandel
+        rel_check = isapprox(diag_shear[1], (diag_normal[1] - off_diag_normal[1]), atol=tol)
+    else
+        rel_check = isapprox(diag_shear[1], (diag_normal[1] - off_diag_normal[1]) / 2, atol=tol)
+    end
+
+    return all_equal_diag && all_equal_off && all_equal_shear && off_block_is_zero && rel_check
 end
 
 """

@@ -123,6 +123,21 @@ end
     Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
     a11 = 0.7
     a22 = 0.25
+    mandel = true
+    #mori tanaka should already be isotropic 
+    pm = SFRPMicroMechanics.IsotropicElasticParameters(Em, num)
+    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm;mandel)
+    pf = SFRPMicroMechanics.IsotropicElasticParameters(Ef, nuf)
+    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf;mandel)
+    Cmt = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, num)
+    @test SFRPMicroMechanics.is_structurally_isotropic(Cmt) #this is very stringent
+    
+    # display(Cmt)
+    elprops = SFRPMicroMechanics.extract_orthotropic_constants(Cmt)
+    @test elprops.E1 ≈ elprops.E2 ≈ elprops.E3
+    @test elprops.nu21 ≈ elprops.nu32 ≈ elprops.nu31
+    @test elprops.G12 ≈ elprops.G23 ≈ elprops.G31
+
     Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     display(Ceff) #almost isotropic...
     elprops = SFRPMicroMechanics.extract_orthotropic_constants(Ceff)
