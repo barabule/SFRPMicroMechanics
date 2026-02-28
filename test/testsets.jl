@@ -80,12 +80,22 @@ end
 
 @testset "Anisotropic Properties" verbose = true begin
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
-    C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    props = SFRPMicroMechanics.extract_orthotropic_constants(C)
+    # C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
+    # props = SFRPMicroMechanics.extract_orthotropic_constants(C)
     # @info props
+    mandel = true
+    # shape = SFRPMicroMechanics.SpheroidalInclusion(num, ar)
+    pm = SFRPMicroMechanics.IsotropicElasticParameters(Em, num)
+    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm;mandel)
+    pf = SFRPMicroMechanics.IsotropicElasticParameters(Ef, nuf)
+    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf;mandel)
+    Cmt = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, num, ar)
+    N2 = SFRPMicroMechanics.OrientationTensor(a11, a22) |> SFRPMicroMechanics.to_matrix
+    Cavg = SFRPMicroMechanics.orientation_average(Cmt, N2; closure = SFRPMicroMechanics.hybrid_closure)
+    props = SFRPMicroMechanics.extract_orthotropic_constants(Cavg)
     @test props.E1 > props.E2
     @test isapprox(props.E2, props.E3, rtol=1e-3)
-    
+    display(Cavg)
     
 end
 

@@ -150,12 +150,13 @@ function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = f
     
     a4 = closure(a2)
 
-    Cavg = SArray{Tuple{3,3,3,3}}( B1 * a4[i, j, k, l] + 
-                                   B2 * (a2[i, j] * δ(k,l) + a2[k, l] * δ(i, j)) +
-                                   B3 * (a2[i, k] * δ(j, l) + a2[j, l] * δ(i, k) + a2[i,l] * δ(j, k) + a2[j, k] * δ(i, l)) +
-                                   B4 * (δ(i, j) * δ(k, l)) + 
-                                   B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
-                                   for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
+    Cavg = SArray{Tuple{3,3,3,3}}( 
+                    B1 * a4[i, j, k, l] + 
+                    B2 * (a2[i, j] * δ(k,l) + a2[k, l] * δ(i, j)) +
+                    B3 * (a2[i, k] * δ(j, l) + a2[j, l] * δ(i, k) + a2[i,l] * δ(j, k) + a2[j, k] * δ(i, l)) +
+                    B4 * (δ(i, j) * δ(k, l)) + 
+                    B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
+                    for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 
     return convert_3333_to_66(Cavg; mandel)
 end
