@@ -72,10 +72,10 @@ Generates a (nodes, faces) tuple for GLMakie.
 - resolution: Number of points for theta and phi.
 """
 function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
-    C_avg_66 = stiffness_matrix_voigt(p)
+    C = stiffness_matrix_voigt(p)
     # Define angles
-    phi = range(0, stop=π, length=resolution)      # Inclination
-    theta = range(0, stop=2π, length=resolution)    # Azimuth
+    phi = LinRange(0, 180, resolution)      # Inclination
+    theta = LinRange(0, 360, resolution)    # Azimuth
     
     nodes = Point3f[]
     
@@ -84,13 +84,15 @@ function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
     for p in phi
         for t in theta
             # Unit vector n
-            nx = sin(p) * cos(t)
-            ny = sin(p) * sin(t)
-            nz = cos(p)
+            sp, cp = sincosd(p)
+            st, ct = sincosd(t)
+            nx = sp * ct
+            ny = sp * st
+            nz = cp
             
             # Evaluate E in this direction
             # Note: We call the apparent_modulus_3d logic here
-            E_val = apparent_modulus_3d(rad2deg(p), rad2deg(t), C_avg_66)
+            E_val = apparent_modulus(C, t, p)
             
             # Scale the unit vector by the modulus magnitude
             push!(nodes, Point3f(E_val * nx, E_val * ny, E_val * nz))
@@ -116,78 +118,10 @@ function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
 end
 
 
-"""
-get_stiffness_slice(C_66, plane=:xy; resolution=100)
-
-Returns (angles, moduli) for a specific plane.
-    - :xy -> Plane 1-2 (Flow / Cross-flow)
-    - :xz -> Plane 1-3 (Flow / Thickness)
-    - :yz -> Plane 2-3 (Cross-flow / Thickness)
-"""
-function get_stiffness_slice(C_66, plane=:xy; resolution=180)
-    alphas = range(0, 2π, length=resolution)
-    moduli = Float64[]
-    
-    for α in alphas
-        if plane == :xy
-            # Inclination phi = 90 deg (XY plane), theta = alpha
-            E = apparent_modulus_3d(90.0, rad2deg(α), C_66)
-            elseif plane == :xz
-            # theta = 0 deg, inclination phi = alpha
-            E = apparent_modulus_3d(rad2deg(α), 0.0, C_66)
-            elseif plane == :yz
-            # theta = 90 deg, inclination phi = alpha
-            E = apparent_modulus_3d(rad2deg(α), 90.0, C_66)
-        else
-            error("Plane must be :xy, :xz, or :yz")
-        end
-        push!(moduli, E)
-    end
-    return alphas, moduli
-end
 
 
-"""
-    compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
-Returns [alpha1, alpha2, alpha3] in the principal material directions.
-"""
-function compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
-    # 1. Setup Stiffness
-    Cm = isotropic_stiffness(Em, num)
-    Cf = isotropic_stiffness(Ef, nuf)
-    I6 = Matrix{Float64}(I, 6, 6)
-    S_eshelby = eshelby_tensor_spheroid(num, AR)
-    
-    # 2. MT Concentration Tensor
-    Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))
-    Amt = Adil * inv((1 - vf) * I6 + vf * Adil)
-    
-    # 3. Aligned Effective Stiffness
-    C_aligned = Cm + vf * (Cf - Cm) * Amt
-    
-    # 4. Aligned CTE (Rosen and Hashin logic)
-    # Transformation to Voigt vector [a1, a2, a3, 0, 0, 0]
-    alpha_m_vec = [alpham, alpham, alpham, 0, 0, 0]
-    alpha_f_vec = [alphaf, alphaf, alphaf, 0, 0, 0]
-    
-    # Aligned CTE vector
-    # alpha_eff = alpha_m + vf * inv(C_aligned) * Cf * Amt * (alpha_f - alpha_m)
-    term = vf * inv(C_aligned) * (Cf * Amt * (alpha_f_vec .- alpha_m_vec))
-    alpha_aligned_vec = alpha_m_vec .+ term
 
-    # 5. Orientation Averaging
-    # For CTE (a 2nd order tensor), averaging is simpler than stiffness:
-    # alpha_ij = (a1_aligned - a2_aligned) * a_ij + a2_aligned * delta_ij
-    a1 = alpha_aligned_vec[1]
-    a2 = alpha_aligned_vec[2] # Transverse aligned CTE
-    
-    a33 = 1.0 - a11 - a22
-    alpha1 = (a1 - a2) * a11 + a2
-    alpha2 = (a1 - a2) * a22 + a2
-    alpha3 = (a1 - a2) * a33 + a2
-    
-    return [alpha1, alpha2, alpha3]
-end
+
 
 
 """

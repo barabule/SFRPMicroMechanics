@@ -64,3 +64,48 @@ function ThermalExpansion(matrix_properties, fiber_properties)
     end
     return ThermalExpansion(αeff)
 end
+
+"""
+    compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
+Returns [alpha1, alpha2, alpha3] in the principal material directions.
+"""
+function ThermalExpansion(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22) 
+    # 1. Setup Stiffness
+    Cm = isotropic_stiffness(Em, num)
+    Cf = isotropic_stiffness(Ef, nuf)
+    
+    I6 = SMatrix{6, 6}(LinearAlgebra.I)
+
+    inclusion = SpheroidalInclusion(num, AR)
+    S_eshelby = eshelby_tensor(inclusion) |> convert_3333_to_66
+    
+    # 2. MT Concentration Tensor
+    Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))
+    Amt = Adil * inv((1 - vf) * I6 + vf * Adil)
+    
+    # 3. Aligned Effective Stiffness
+    C_aligned = Cm + vf * (Cf - Cm) * Amt
+    
+    # 4. Aligned CTE (Rosen and Hashin logic)
+    # Transformation to Voigt vector [a1, a2, a3, 0, 0, 0]
+    alpha_m_vec = ThermalExpansion(alpham) |> to_voigt
+    alpha_f_vec = ThermalExpansion(alphaf) |> to_voigt
+    
+    # Aligned CTE vector
+    # alpha_eff = alpha_m + vf * inv(C_aligned) * Cf * Amt * (alpha_f - alpha_m)
+    term = vf * inv(C_aligned) * (Cf * Amt * (alpha_f_vec .- alpha_m_vec))
+    alpha_aligned_vec = alpha_m_vec .+ term
+
+    # 5. Orientation Averaging
+    # For CTE (a 2nd order tensor), averaging is simpler than stiffness:
+    # alpha_ij = (a1_aligned - a2_aligned) * a_ij + a2_aligned * delta_ij
+    a1 = alpha_aligned_vec[1]
+    a2 = alpha_aligned_vec[2] # Transverse aligned CTE
+    
+    a33 = 1.0 - a11 - a22
+    alpha1 = (a1 - a2) * a11 + a2
+    alpha2 = (a1 - a2) * a22 + a2
+    alpha3 = (a1 - a2) * a33 + a2
+    
+    return ThermalExpansion(alpha1, alpha2, alpha3)
+end

@@ -66,7 +66,6 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m;
     T = eltype(Cm)
     I = SMatrix{6,6, T}(LinearAlgebra.I)
     
-    # S = convert_3333_to_66(eshelby_tensor(fiber_shape(nu_m, AR)); mandel = false)
     S= convert_3333_to_66(eshelby_tensor(fiber_shape(nu_m, AR)); mandel)
     
     A_dilute = mt_dilute_tensor(Cm, Cf, S)

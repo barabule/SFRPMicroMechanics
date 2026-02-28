@@ -91,41 +91,42 @@ function OrthotropicElasticParameters(;E1 = nothing,
     return OrthotropicElasticParameters(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
 end
 
-function stiffness_matrix_voigt(p::IsotropicElasticParameters)
+function stiffness_matrix_voigt(p::IsotropicElasticParameters; mandel = false)
     E, nu = p.E_modulus, p.nu
-    return isotropic_stiffness(E, nu)
+    return isotropic_stiffness(E, nu; mandel)
 end
 
-function stiffness_matrix_voigt(p::OrthotropicElasticParameters)
+function stiffness_matrix_voigt(p::OrthotropicElasticParameters; mandel = false)
     
-    return orthotropic_stiffness(p.E1, p.E2, p.E3, p.G12, p.G23, p.G31, p.nu21, p.nu31, p.nu32) 
+    return orthotropic_stiffness(p.E1, p.E2, p.E3, p.G12, p.G23, p.G31, p.nu21, p.nu31, p.nu32; mandel) 
 end
 
 
 # Isotropic Stiffness Matrix (Voigt 6x6)
-function isotropic_stiffness(E, nu)
+function isotropic_stiffness(E, nu; mandel = false)
     λ = (E * nu) / ((1 + nu) * (1 - 2nu))
     μ = E / (2 * (1 + nu))
-
+    f = mandel ? 2 : 1
     return @SMatrix [λ+2μ   λ     λ     0   0   0;
                       λ     λ+2μ  λ     0   0   0;
                       λ     λ     λ+2μ  0   0   0;
-                      0     0     0     μ   0   0;
-                      0     0     0     0   μ   0;
-                      0     0     0     0   0   μ]
+                      0     0     0     f*μ   0   0;
+                      0     0     0     0   f*μ   0;
+                      0     0     0     0   0   f*μ]
 end
 
 
 
-function is_isotropic(C66)
+function is_isotropic(C66;mandel = false)
     μ = C66[4,4]
     λ = C66[1,2]
+    f = mandel ? 2 : 1
     C66iso = @SMatrix [λ+2μ   λ     λ     0   0   0;
                       λ     λ+2μ  λ     0   0   0;
                       λ     λ     λ+2μ  0   0   0;
-                      0     0     0     μ   0   0;
-                      0     0     0     0   μ   0;
-                      0     0     0     0   0   μ]
+                      0     0     0     f*μ   0   0;
+                      0     0     0     0   f*μ   0;
+                      0     0     0     0   0   f*μ]
     return all(C66 .≈  C66iso)
 end
 
@@ -139,17 +140,17 @@ function calc_vol_fraction(mass_fraction, rho_f, rho_m)
     return v_f
 end
 
-function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
+function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mandel = false)
     nu12 = nu21 * E1 / E2
     nu13 = nu31 * E1 / E3
     nu23 = nu32 * E2 / E3
-
+    f = mandel ? 1/2 : 1
     C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
                     -nu12/E1     1/E2        -nu32/E3   0     0     0;
                     -nu13/E1   -nu23/E2        1/E3     0     0     0;
-                       0          0             0     1/G23   0     0;
-                       0          0             0       0    1/G31  0;
-                       0          0             0       0     0    1/G12]
+                       0          0             0     f/G23   0     0;
+                       0          0             0       0    f/G31  0;
+                       0          0             0       0     0    f/G12]
 
     return SMatrix(inv(C))    
 end

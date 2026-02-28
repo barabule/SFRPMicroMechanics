@@ -331,6 +331,7 @@ end
          SFRPMicroMechanics.convert_3333_to_66
 
     vf = 0.2
+    a11, a22 = 0.7, 0.2
     """
     matrix = (;stiffness = Cm, 
                 thermal_expansion = αm)
@@ -351,6 +352,117 @@ end
     cte_eff = SFRPMicroMechanics.ThermalExpansion(matrix, fibers)
     display(cte_eff)
     @test alfa_f < cte_eff.alpha1 < alfa_m
+
+    #might as well
+    # ThermalExpansion(Em::T, num::T, alpham::T, Ef::T, nuf::T, alphaf::T, vf::T, AR::T, a11::T, a22::T)
+    cte_eff = ThermalExpansion(Em, num, alfa_m, Ef, nuf, alfa_f, vf, AR, a11, a22)
+    #dir 1 alfa is closer to fiber than dir 2 and 3
+    display(cte_eff)
+    @test abs(alfa_f - cte_eff.alpha1) < abs(alfa_f - cte_eff.alpha2)
 end
 
 
+@testset "Comparison to homopy" verbose = true begin
+    #isotropic fibers
+    mandel = true
+    pf = SFRPMicroMechanics.IsotropicElasticParameters(242, 0.1)
+    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf; mandel)
+    nu_m = 0.35
+    pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, nu_m)
+    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm; mandel)
+    ar = 20
+    vf = 0.2
+    Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
+                    fiber_shape = SpheroidalInclusion, 
+                    mandel,
+                    )
+    # @info "Ceff"
+    # display(Ceff)
+    Ceff_homopy = [22.56165115 2.12961706 2.12961706 0 0 0;
+                    2.12961706 4.28614074 2.20904525 0 0 0;
+                    2.12961706 2.20904525 4.28614074 0 0 0;
+                        0         0        0     2.0770955 0 0;
+                        0         0        0         0  2.21728527 0;
+                        0         0        0         0     0   2.21728527]
+    # @info "Ceff homopy"
+    # display(Ceff_homopy)
+    # @test all(Ceff .≈ Ceff_homopy)
+    for (c, c_hom) in zip(Ceff, Ceff_homopy)
+        @test c ≈ c_hom atol=1e-4
+    end
+
+
+
+    inclusion = SFRPMicroMechanics.SpheroidalInclusion(nu_m, ar)
+    S = SFRPMicroMechanics.convert_3333_to_66( 
+                        SFRPMicroMechanics.eshelby_tensor(inclusion) ;
+                        mandel = true)
+    # @info "S"
+    # display(S)
+    S_homopy = [1.52433537e-2 -6.13043062e-4 -6.13043062e-4       0           0           0;
+                2.63166567e-1  6.90820632e-1  7.74657062e-2       0           0           0;
+                2.63166567e-1  7.74657062e-2  6.90820632e-1       0           0           0;
+                    0              0              0          6.13354926e-1    0           0;
+                    0              0              0               0        4.94880228e-1  0;
+                    0              0              0               0           0       4.9480228e-1]
+    # @info "S_homopy"
+    # display(S_homopy)
+    # @test all(isapprox.(S, S_homopy, rtol=1e-4))
+    for (s, s_hom) in zip(S, S_homopy)
+        @test s ≈ s_hom atol=1e-4
+    end
+
+    #transverse isotropic fibers
+
+    E1_c = 230.0
+    E2_c = E3_c = 50.0
+    G12_c = 10.0
+    nu21_c = nu31_c = 0.03
+    nu23_c = 0.39
+
+    G23_c = E2_c / (2 * (1 +nu23_c))
+    G13_c = G12_c
+
+    pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
+                                                        E2 = E2_c, E3 = E3_c,
+                                                        G12 = G12_c, G23 = G23_c, G31 = G13_c,
+                                                        nu21 = nu21_c, nu23 = nu23_c, nu31 = nu31_c)
+    display(pf)
+    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf; mandel)
+    # @info "Cf"
+    # display(Cf)
+    Cf_homopy = [233.16492721    11.46712757    11.46712757    0        0        0;
+                  11.46712757    59.53317516    23.56195214    0        0        0;
+                  11.46712757    23.56195214    59.53317516    0        0        0;
+                   0             0               0          35.97122302 0        0;
+                   0             0               0             0     20.0         0;
+                   0             0               0             0        0       20.0]
+    # @info "Cf_homopy"
+    # display(Cf_homopy)
+    for (c, c_hom) in zip(Cf, Cf_homopy)
+        @test c ≈ c_hom
+    end
+
+    Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
+                    fiber_shape = SpheroidalInclusion, 
+                    mandel,
+                    )
+    @info "Ceff trans"
+    display(Ceff)
+
+    Ceff_homopy = [29.92384992  2.21785213    2.21785213    0     0    0 ;
+                    2.21785213  4.54152923    2.32401817    0     0    0 ;
+                    2.21785213  2.32401817    4.54152923    0     0    0 ;
+                    0           0             0         2.21751107 0   0;
+                    0           0             0             0  2.30146776  0;
+                    0           0             0             0      0   2.30146776]
+
+    @info "Ceff_homopy trans"
+    display(Ceff_homopy)
+
+    for (c, c_hom) in zip(Ceff, Ceff_homopy)
+        @test c ≈ c_hom
+    end
+
+
+end
