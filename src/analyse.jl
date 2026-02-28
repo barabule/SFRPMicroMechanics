@@ -5,13 +5,13 @@ apparent_modulus(theta_deg, p)
 Calculates the Young's Modulus at an angle theta (degrees) 
 relative to the 1-axis.
 """
-function apparent_modulus(theta_deg, p::OrthotropicElasticParameters)
-    θ = theta_deg
+function apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T) where {T<:Real}
+    
 
     # 1/E_theta = cos(theta)^4 / E1 + sin(theta)^4/E2 + (1/G12 - 2nu12/E1)*sin^2 cos^2
 
-    s = sind(θ)
-    c = cosd(θ)
+    s, c = sincosd(theta_deg)
+    
     #nu12/E2 = nu21/E1
     E1 = p.E1
     E2 = p.E2
@@ -19,57 +19,50 @@ function apparent_modulus(theta_deg, p::OrthotropicElasticParameters)
     G12 = p.G12
     # Off-axis compliance calculation
     inv_E_theta = (c^4 / E1) + 
-        ( (1/G12) - (2*nu12/E1) ) * (s^2 * c^2) + 
-            (s^4 / E2)
+                  (1 / G12 - 2*nu12 / E1) * (s^2 * c^2) + 
+                  (s^4 / E2)
         
         return 1.0 / inv_E_theta
 end
     
     
 """
-    apparent_modulus_3d(phi_deg, theta_deg, p::OrthotropicElasticParameters)
+    apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T2, phi_deg::T1) where {T1<:Real, T2<:Real}
 
 Calculates the Young's Modulus in 3D space.
 - phi_deg: Inclination from the 3-axis (0 to 180)
 - theta_deg: Azimuth from the 1-axis in the 1-2 plane (0 to 360)
 - p - orthotropic elastic constants
 """
-function apparent_modulus_3d(phi_deg, theta_deg, p::OrthotropicElasticParameters)
-    C_avg_66 = stiffness_matrix_voigt(p)
-    # 1. Convert C to 4th-order compliance S_ijkl
-    S_66 = inv(C_avg_66)
+function apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T1, phi_deg::T2) where {T1<:Real, T2<:Real}
     
-    # Map Voigt 6x6 to 3x3x3x3 tensor S
-    S = zeros(3, 3, 3, 3)
-    v = [(1,1), (2,2), (3,3), (2,3), (1,3), (1,2)]
-    for r in 1:6, c in 1:6
-        i, j = v[r]
-        k, l = v[c]
-        # Voigt shear components in S involve factors of 1, 1/2, or 1/4
-        val = S_66[r, c]
-        if r > 3; val /= 2.0; end
-        if c > 3; val /= 2.0; end
-        
-        S[i,j,k,l] = S[j,i,k,l] = S[i,j,l,k] = S[j,i,l,k] = val
-    end
+    E1, E2, E3 = p.E1, p.E2, p.E3
+    nu21, nu32, nu31 = p.nu21, p.nu32, p.nu31
+
+    G12, G23, G31 = p.G12, p.G23, p.G31
+
+
+    sϕ, cϕ = sincosd(phi_deg)
+    sθ, cθ = sincosd(theta_deg)
+    l1 = sϕ * cθ
+    l2 = sϕ * sθ
+    l3 = cϕ
+    invE = l1^4 / E1 + l2^4 / E2 + l3^4 / E3 + 
+           (1/G23 - 2nu32/E3) * l2^2 * l3^2 +
+           (1/G31 - 2nu31/E3) * l1^2 * l3^2 +
+           (1/G12 - 2nu21/E2) * l1^2 * l2^2
+
     
-    # 2. Define the direction unit vector n
-    ϕ = deg2rad(phi_deg)
-    θ = deg2rad(theta_deg)
-    
-    nx = sin(ϕ) * cos(θ)
-    ny = sin(ϕ) * sin(θ)
-    nz = cos(ϕ)
-    n = [nx, ny, nz]
-    
-    # 3. Calculate 1/E = S_ijkl * ni * nj * nk * nl
-    inv_E = 0.0
-    for i=1:3, j=1:3, k=1:3, l=1:3
-        inv_E += S[i,j,k,l] * n[i] * n[j] * n[k] * n[l]
-    end
-    
-    return 1.0 / inv_E
+    return inv(invE)
 end
+
+
+function apparent_modulus(C66::AbstractMatrix, args...; kwargs...)
+    return apparent_modulus(extract_orthotropic_constants(C66), args...; kwargs...)
+end
+
+
+
 
 
 """

@@ -21,5 +21,6 @@ export IsotropicElasticParameters, OrthotropicElasticParameters, stiffness_matri
 export is_isotropic, compute_orthotropic_properties
 export eshelby_tensor, SphericalInclusion, SpheroidalInclusion, DiscInclusion, ThinDiscInclusion, NeedleInclusion
 export ThermalExpansion, halpin_tsai, orientation_average, mori_tanaka
+export apparent_modulus
 
 end # module SFRPMicroMechanics
