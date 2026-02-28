@@ -17,9 +17,9 @@ include("analyse.jl")
 
 
 # Re-export main functions for the user
-export compute_orthotropic_properties, 
-       calibrate_mat215, 
-       simulate_tensile_test,
-       generate_stiffness_mesh
+export IsotropicElasticParameters, OrthotropicElasticParameters, stiffness_matrix_voigt, extract_orthotropic_constants
+export is_isotropic, compute_orthotropic_properties
+export eshelby_tensor, SphericalInclusion, SpheroidalInclusion, DiscInclusion, ThinDiscInclusion, NeedleInclusion
+export ThermalExpansion, halpin_tsai, orientation_average, mori_tanaka
 
 end # module SFRPMicroMechanics
