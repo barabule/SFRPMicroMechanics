@@ -406,6 +406,29 @@ end
         @test c ≈ c_hom atol=1e-4
     end
 
+    a11, a22 = 0.7, 0.25
+    orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) |> SFRPMicroMechanics.to_matrix
+    Cavg = SFRPMicroMechanics.orientation_average(Ceff, orientation_tensor; mandel)
+
+    # @info "Cavg"
+    # display(Cavg)
+
+    Cavg_homopy = [13.72300436  5.12826607    3.00247743    0       0         0;
+                    5.12826607  5.80792549    2.42678122    0       0         0;
+                    3.00257743  2.42678122    4.12680095    0       0         0;
+                    0           0             0        2.25192461   0         0;
+                    0           0             0             0   1.90998018    0;
+                    0           0             0             0       0     3.20117434]
+    # @info "Cavg homopy"
+    # display(Cavg_homopy)
+
+    for (ca, ca_hom) in zip(Cavg, Cavg_homopy)
+        @test ca ≈ ca_hom
+    end
+
+    #test the hybrid closure element by element // also wrong
+    @info "N4 hybrid"
+    N4 = display(SFRPMicroMechanics.hybrid_closure(orientation_tensor))
 
 
     inclusion = SFRPMicroMechanics.SpheroidalInclusion(nu_m, ar)
@@ -462,8 +485,8 @@ end
                     fiber_shape = SpheroidalInclusion, 
                     mandel,
                     )
-    @info "Ceff trans"
-    display(Ceff)
+    # @info "Ceff trans"
+    # display(Ceff)
 
     Ceff_homopy = [29.92384992  2.21785213    2.21785213    0     0    0 ;
                     2.21785213  4.54152923    2.32401817    0     0    0 ;
@@ -472,8 +495,8 @@ end
                     0           0             0             0  2.30146776  0;
                     0           0             0             0      0   2.30146776]
 
-    @info "Ceff_homopy trans"
-    display(Ceff_homopy)
+    # @info "Ceff_homopy trans"
+    # display(Ceff_homopy)
 
     for (c, c_hom) in zip(Ceff, Ceff_homopy)
         @test c ≈ c_hom
