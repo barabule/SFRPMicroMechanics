@@ -1,4 +1,22 @@
-function linear_closure(a2)
+abstract type AbstractClosure end #all 4th order closures
+abstract type AbstractSimpleClosure <: AbstractClosure end
+
+struct LinearClosure     <: AbstractSimpleClosure end
+struct QuadraticClosure  <: AbstractSimpleClosure end
+struct HybridClosure     <: AbstractSimpleClosure end
+struct HL1Closure        <: AbstractSimpleClosure end
+struct HL2Closure        <: AbstractSimpleClosure end
+
+function compute_closure(a::AbstractOrientationTensor, closure::AbstractSimpleClosure)
+    a2 = to_matrix(a)
+
+    return closure(a2)
+end
+
+
+
+
+function linear_closure(a2::AbstractMatrix)
     
     SArray{Tuple{3,3,3,3}}( -1/35 * (δ(i, j) * δ(k, l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k)) +
                             1/7 * (δ(i, j) * a2[k, l] + 
@@ -11,16 +29,25 @@ function linear_closure(a2)
 
 end
 
-function quadratic_closure(a2)
+LinearClosure(a2) = linear_closure(a2)
+
+
+
+function quadratic_closure((a2::AbstractMatrix))
+    
     return SArray{Tuple{3,3,3,3}}(a2[i,j] * a2[k, l] for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 end
+
+
+QuadraticClosure(a2) = quadratic_closure(a2)
+
 
 """
 Computes the 4th-order orientation tensor using the Hybrid Closure approximation.
 Balances Linear and Quadratic closures based on the degree of alignment.
 """
-function hybrid_closure(a2)
-
+function hybrid_closure((a2::AbstractMatrix))
+   
     f = 27 * det(a2)
 
     a4_l = linear_closure(a2)
@@ -29,8 +56,11 @@ function hybrid_closure(a2)
     return f * a4_l + (1 - f) * a4_q
 end
 
+HybridClosure(a2) = hybrid_closure(a2)
 
-function HL1_closure(a2)
+
+function HL1_closure((a2::AbstractMatrix))
+    
     b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
 
     SArray{Tuple{3,3,3,3}}(2/5 * (δ(i, j) * a2[k, l] + δ(k, l) * a2[i, j]) -
@@ -40,8 +70,10 @@ function HL1_closure(a2)
                            for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
 end
 
+HL1Closure(a2) = HL1_closure(a2)
 
-function HL2_closure(a2)
+function HL2_closure((a2::AbstractMatrix))
+    
     
     b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
     
@@ -57,9 +89,31 @@ function HL2_closure(a2)
                                 )
 end
 
+HL2Closure(a2)  = HL2_closure(a2)
 
-function smooth_orthotropic_closure(a::OrientationTensor)
-    a1, a2 = a.a11, a.a22
+#eigenvalue decomp closures
+abstract type AbstractOrthotropicClosure<:AbstractClosure end
+struct ORS  <: AbstractOrthotropicClosure end
+struct ORF  <: AbstractOrthotropicClosure end
+struct ORL  <: AbstractOrthotropicClosure end
+struct ORW  <: AbstractOrthotropicClosure end
+struct ORW3 <: AbstractOrthotropicClosure end
+struct ORFM <: AbstractOrthotropicClosure end
+
+function compute_closure(a::AbstractOrientationTensor, closure::AbstractOrthotropicClosure)
+    (aeig, R33) = decompose_eigenvalue #eigenvalue decomposition and rotation matrix 3x3
+    R66 = convert_rot_33_to_66(R33) #rotation matrix 6x6 voigt
+    a11, a22 = aeig.a11, aeig.a22
+    c66 = closure(a11, a22) #compute the actual closure
+    
+    return R66 * c66 * R66'#finally rotate back
+end
+
+
+
+
+function smooth_orthotropic_closure(a1::T, a2::T) where T<:Real
+    
 
     Ct =       @SMatrix [-0.15   -0.15    0.60;
                          1.15    1.15   -0.60;
@@ -72,10 +126,10 @@ function smooth_orthotropic_closure(a::OrientationTensor)
     return compute_eigenvalue_closure_matrix(a1, a2, A11, A22, A33)
 end
 
-ORS_closure(a::OrientationTensor) = smooth_orthotropic_closure(a)
+ORS(a1, a2) = smooth_orthotropic_closure(a1, a2)
 
-function fitted_orthotropic_closure(a::OrientationTensor)
-    a1, a2 = a.a11, a.a22
+function fitted_orthotropic_closure(a1::T, a2::T) where T<:Real
+    
 
     Ct = @SMatrix [ 0.060964    0.124711   1.228982;
                    0.371243   -0.389402  -2.054116;
@@ -88,13 +142,12 @@ function fitted_orthotropic_closure(a::OrientationTensor)
     return ortho_poly_6(a1, a2, C)
 end
 
-ORF_closure(a::OrientationTensor) = fitted_orthotropic_closure(a)
+ORF(a1, a2) = fitted_orthotropic_closure(a1, a2)
 
 
 
-function low_interaction_orthotropic_closure(a::OrientationTensor)
-    a1, a2 = a.a11, a.a22
-
+function low_interaction_orthotropic_closure(a1::T, a2::T) where T<:Real
+    
     Ct = @SMatrix [ 0.104753    0.162210     1.288896;
                    0.346874   -0.451257    -2.187810;
                    0.544970    0.286639     0.899635;
@@ -106,13 +159,11 @@ function low_interaction_orthotropic_closure(a::OrientationTensor)
     return ortho_poly_6(a1, a2, C)
 end
 
-ORL_closure(a::OrientationTensor) = low_interaction_orthotropic_closure(a)
+ORL(a1, a2) = low_interaction_orthotropic_closure(a1, a2)
 
 
-function wide_range_interaction_orthotropic_closure(a::OrientationTensor)
-
-    a1, a2 = a.a11, a.a22
-
+function wide_range_interaction_orthotropic_closure(a1::T, a2::T) where T<:Real
+    
     Ct = @SMatrix [0.070055    0.115177        1.249811;
                    0.339376   -0.368267       -2.148297;
                    0.590331    0.252880        0.898521;
@@ -125,12 +176,11 @@ function wide_range_interaction_orthotropic_closure(a::OrientationTensor)
 end
 
 
-ORW_closure(a::OrientationTensor) = wide_range_interaction_orthotropic_closure(a)
+ORW(a1, a2) = wide_range_interaction_orthotropic_closure(a1, a2)
 
 
-function wide_range_interaction_orthotropic_closure_3rd_order(a::OrientationTensor)
-    a1, a2 = a.a11, a.a22
-
+function wide_range_interaction_orthotropic_closure_3rd_order(a1::T, a2::T) where T<:Real
+    
     Ct = @SMatrix [ -0.1480648093    -0.2106349673     0.4868019601;
                      0.8084618453     0.9092350296     0.5776328438;
                      0.3722003446    -1.2840654776    -2.2462007509;
@@ -145,7 +195,7 @@ function wide_range_interaction_orthotropic_closure_3rd_order(a::OrientationTens
     ortho_poly_10_terms(a1, a2, C)
 end
 
-ORW3(a::OrientationTensor) = wide_range_interaction_orthotropic_closure_3rd_order(a)
+ORW3(a1, a2) = wide_range_interaction_orthotropic_closure_3rd_order(a1, a2)
 
 
 
@@ -190,21 +240,13 @@ function compute_eigenvalue_closure_matrix(a1, a2, A11, A22, A33)
 end
 
 
-function modified_fitted_orthotropic_closure(a::OrientationTensor)
-    a1, a2 = a.a11, a.a22
+function modified_fitted_orthotropic_closure(a1, a2)
+    
     return compute_modified_eigenvalue_closure_matrix(a1, a2)
-    # Ct = @SMatrix [0.407328    0.124711   0.882617;
-    #               -0.236137   -0.389402  -1.446735;
-    #                0.817847    0.258844   0.559003;
-    #               -1.471783    0.086169  -1.157952;
-    #                1.084126    0.796080   0.288046;
-    #                1.367983    0.544992   0.822991]
-    # C = Ct'
-
-    # return ortho_poly_6(a1, a2, C)
+    
 end
 
-ORFM_closure(a::OrientationTensor) = modified_fitted_orthotropic_closure(a)
+ORFM(a1, a2) = modified_fitted_orthotropic_closure(a1, a2)
 
 function compute_modified_eigenvalue_closure_matrix(a1, a2)
     A23 = A44 = 0.2 - 0.2 * a1 - 0.2 * a2
@@ -230,21 +272,18 @@ function compute_modified_eigenvalue_closure_matrix(a1, a2)
 
 end
 
-function eigenvalue_closure_rotation(a_full::FullOrientationTensor; eigenvalue_closure = ORF_closure)
-    a = to_matrix(a_full)
-    (lambda, Q) = eigen(a)
-    a1, a2 = lambda[3], lambda[2]
-    Q11, Q21, Q31 = Q[1,3], Q[2,3], Q[3,3]
-    Q12, Q22, Q32 = Q[1,2], Q[2,2], Q[3,2]
-    Q13, Q23, Q33 = Q[1,1], Q[2,1], Q[3,1]
-    
-    R = @SMatrix [Q11 * Q11  Q12 * Q12  Q13 * Q13    2Q12 * Q13     2Q11 * Q13         2Q11 * Q12;
-                  Q21 * Q21  Q22 * Q22  Q23 * Q23    2Q22 * Q23     2Q21 * Q23         2Q21 * Q22;
-                  Q31 * Q31  Q32 * Q32  Q33 * Q33    2Q31 * Q33     2Q31 * Q33         2Q31 * Q32;
-                  Q21 * Q31  Q22 * Q32  Q23 * Q33    Q22 * Q33 + Q23 * Q32  Q23 * Q31 + Q21 * Q33  Q21 * Q32 + Q22 * Q31;
-                  Q31 * Q11  Q32 * Q12  Q33 * Q13    Q32 * Q13 + Q33 * Q12  Q33 * Q11 + Q31 * Q13  Q31 * Q12 + Q32 * Q11;
-                  Q11 * Q21  Q12 * Q22  Q13 * Q23    Q12 * Q23 + Q13 * Q22  Q13 * Q21 + Q11 * Q23  Q11 * Q22 + Q12 * Q21]
 
-    A4bar = eigenvalue_closure(OrientationTensor(a1, a2))
-    return R * A4bar * R'
+function convert_rot_33_to_66(R33)
+    Q = R33 #already reordered
+    Q11, Q21, Q31 = Q[1,1], Q[2,1], Q[3,1]
+    Q12, Q22, Q32 = Q[1,2], Q[2,2], Q[3,2]
+    Q13, Q23, Q33 = Q[1,3], Q[2,3], Q[3,3]
+    
+    R66 = @SMatrix [Q11 * Q11  Q12 * Q12  Q13 * Q13    2Q12 * Q13     2Q11 * Q13         2Q11 * Q12;
+                    Q21 * Q21  Q22 * Q22  Q23 * Q23    2Q22 * Q23     2Q21 * Q23         2Q21 * Q22;
+                    Q31 * Q31  Q32 * Q32  Q33 * Q33    2Q31 * Q33     2Q31 * Q33         2Q31 * Q32;
+                    Q21 * Q31  Q22 * Q32  Q23 * Q33    Q22 * Q33 + Q23 * Q32  Q23 * Q31 + Q21 * Q33  Q21 * Q32 + Q22 * Q31;
+                    Q31 * Q11  Q32 * Q12  Q33 * Q13    Q32 * Q13 + Q33 * Q12  Q33 * Q11 + Q31 * Q13  Q31 * Q12 + Q32 * Q11;
+                    Q11 * Q21  Q12 * Q22  Q13 * Q23    Q12 * Q23 + Q13 * Q22  Q13 * Q21 + Q11 * Q23  Q11 * Q22 + Q12 * Q21]
+    return R66
 end

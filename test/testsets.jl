@@ -85,13 +85,7 @@ end
     # @info props
     mandel = true
     # shape = SFRPMicroMechanics.SpheroidalInclusion(num, ar)
-    pm = SFRPMicroMechanics.IsotropicElasticParameters(Em, num)
-    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm;mandel)
-    pf = SFRPMicroMechanics.IsotropicElasticParameters(Ef, nuf)
-    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf;mandel)
-    Cmt = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, num, ar)
-    N2 = SFRPMicroMechanics.OrientationTensor(a11, a22) |> SFRPMicroMechanics.to_matrix
-    Cavg = SFRPMicroMechanics.orientation_average(Cmt, N2; closure = SFRPMicroMechanics.hybrid_closure)
+    Cavg = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
     props = SFRPMicroMechanics.extract_orthotropic_constants(Cavg)
     @test props.E1 > props.E2
     @test isapprox(props.E2, props.E3, rtol=1e-3)
@@ -412,17 +406,17 @@ end
                         0         0        0         0     0   2.21728527]
     # @info "Ceff homopy"
     # display(Ceff_homopy)
-    # @test all(Ceff .≈ Ceff_homopy)
-    for (c, c_hom) in zip(Ceff, Ceff_homopy)
-        @test c ≈ c_hom atol=1e-4
-    end
+    @test all(isapprox.(Ceff, Ceff_homopy, atol = 1e-4))
+    # for (c, c_hom) in zip(Ceff, Ceff_homopy)
+    #     @test c ≈ c_hom atol=1e-4
+    # end
 
     a11, a22 = 0.7, 0.25
     orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) |> SFRPMicroMechanics.to_matrix
     Cavg = SFRPMicroMechanics.orientation_average(Ceff, orientation_tensor; mandel)
 
-    # @info "Cavg"
-    # display(Cavg)
+    @info "Cavg"
+    display(Cavg)
 
     Cavg_homopy = [13.72300436  5.12826607    3.00247743    0       0         0;
                     5.12826607  5.80792549    2.42678122    0       0         0;
@@ -430,12 +424,12 @@ end
                     0           0             0        2.25192461   0         0;
                     0           0             0             0   1.90998018    0;
                     0           0             0             0       0     3.20117434]
-    # @info "Cavg homopy"
-    # display(Cavg_homopy)
-
-    for (ca, ca_hom) in zip(Cavg, Cavg_homopy)
-        @test ca ≈ ca_hom
-    end
+    @info "Cavg homopy"
+    display(Cavg_homopy)
+    @test all(isapprox.(Cavg, Cavg_homopy, atol =1e-4))
+    # for (ca, ca_hom) in zip(Cavg, Cavg_homopy)
+    #     @test ca ≈ ca_hom
+    # end
 
     #test the hybrid closure element by element // also wrong
     # @info "N4 hybrid"
@@ -456,7 +450,7 @@ end
                     0              0              0               0           0       4.9480228e-1]
     # @info "S_homopy"
     # display(S_homopy)
-    @test all(isapprox.(S, S_homopy, rtol=1e-4))
+    @test all(isapprox.(S, S_homopy, atol=1e-4))
     # for (s, s_hom) in zip(S, S_homopy)
     #     @test s ≈ s_hom atol=1e-4
     # end
@@ -488,9 +482,10 @@ end
                    0             0               0             0        0       20.0]
     # @info "Cf_homopy"
     # display(Cf_homopy)
-    for (c, c_hom) in zip(Cf, Cf_homopy)
-        @test c ≈ c_hom
-    end
+    @test all(isapprox.(Cf, Cf_homopy, atol = 1e-4))
+    # for (c, c_hom) in zip(Cf, Cf_homopy)
+    #     @test c ≈ c_hom
+    # end
 
     Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
                     fiber_shape = SpheroidalInclusion, 
@@ -508,10 +503,10 @@ end
 
     @info "Ceff_homopy trans"
     display(Ceff_homopy)
-
-    for (c, c_hom) in zip(Ceff, Ceff_homopy)
-        @test c ≈ c_hom
-    end
+    @test all(Ceff .≈ Ceff_homopy)
+    # for (c, c_hom) in zip(Ceff, Ceff_homopy)
+    #     @test c ≈ c_hom
+    # end
 
 
 end

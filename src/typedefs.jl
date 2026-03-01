@@ -219,6 +219,7 @@ end
 
 abstract type AbstractOrientationTensor end
 
+
 struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     a11::T
     a22::T
@@ -233,12 +234,14 @@ struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     end
 end
 
-function to_matrix(A::OrientationTensor)
-    a11, a22 = A.a11, A.a22
-    a33 = 1 - a11 - a22
-    return Symmetric(SMatrix{3,3}([a11 0 0;
-                                    0 a22 0;
-                                    0  0  a33]))
+function get_all_coefficients(a::OrientationTensor)
+    a1 = a.a11
+    a2 = a.a22
+    a3 = 1 - a1 -a2
+    a4 = 0
+    a5 = 0
+    a6 = 0
+    return (a1, a2, a3, a4, a5, a6)
 end
 
 
@@ -257,9 +260,39 @@ struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
     end
 end
 
+function get_all_coefficients(a::FullOrientationTensor)
+    a3 = 1 - a.a1 - a.a2
+    return (a.a1, a.a2, a.a3, a.a4, a.a5, a.a6)
+end
+
+
 function FullOrientationTensor(;a1 = nothing, a2 = nothing, a4 = nothing, a5 = nothing, a6 = nothing)
     @assert !(isnothing(a1) || isnothing(a2) || isnothing(a4) || isnothing(a5) || isnothing(a6))
     return FullOrientationTensor(a1, a2, a4, a5, a6)
+end
+
+
+function FullOrientationTensor(a::OrientationTensor{T}) where T
+    a4, a5, a6 = 0, 0, 0
+    return FullOrientationTensor(a.a11, a.a22, a4, a5, a6)
+end
+
+
+function decompose_eigenvalue(a::AbstractOrientationTensor)
+    if isa(a, OrientationTensor)
+        return (;tensor = a, rotation = SMatrix{3,3}(LinearAlgebra.I))
+    end
+    
+    amat = to_matrix(a)
+    lambda, vecs = eigen(amat) 
+    a11, a22 = lambda[3], lambda[2] 
+    
+    R = @SMatrix [vecs[1,3] vecs[1,2] vecs[1,1];
+                    vecs[2,3] vecs[2,2] vecs[1,2];
+                    vecs[3,3] vecs[2,3] vecs[1,3]]
+    return (;tensor = OrientationTensor(a11, a22),
+            rotation = R)
+    
 end
 
 
@@ -280,10 +313,12 @@ function Base.show(io::IO, ::MIME"text/plain", p::T) where {T<:AbstractOrientati
 end
 
 
-function to_matrix(a::FullOrientationTensor)
-    return @SMatrix [a.a1 a.a6     a.a5;
-                     a.a6 a.a2     a.a4;
-                     a.a5 a.a4 (1- a.a1 - a.a2)]
+
+function to_matrix(a::AbstractOrientationTensor)
+    a1, a2, a3, a4, a5,a6  = get_all_coefficients(a)
+    return @SMatrix [a1 a6 a5;
+                     a6 a2 a4;
+                     a5 a4 a3]
 end
 
 function OrientationTensor(afull::FullOrientationTensor)
