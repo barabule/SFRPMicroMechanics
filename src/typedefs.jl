@@ -285,7 +285,7 @@ function decompose_eigenvalue(a::AbstractOrientationTensor)
 
     amat = to_matrix(a)
     lambda, vecs = eigen(amat) 
-    @info "lambda $lambda"
+    # @info "lambda $lambda"
     a11, a22 = lambda[3], lambda[2] 
     
     R = @SMatrix   [vecs[1,3] vecs[1,2] vecs[1,1];

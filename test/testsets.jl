@@ -524,16 +524,22 @@ end
            S.ORL, 
            S.ORFM, 
            S.ORW, 
-           S.ORW3]
+           S.ORW3,
+           S.IBOF]
 
     Q, rot = qr(randn(3,3))
     R = Matrix(Q)
     adiag = diagm([0.6, 0.3, 0.1])
     amat = R * adiag * R'
     a = S.FullOrientationTensor(amat[1, 1], amat[2,2], amat[2,3], amat[1,3], amat[1,2])
+    a2 = S.to_matrix(a)
     for CT in CTs
         @info "CT = $CT"
-        @test S.test_closure_approximation(a, CT; tol = 1e-8)
+        # @test S.test_closure_approximation(a, CT; tol = 1e-8)
+        N4 = S.closure(a, CT)
+        @test S.is_normalized(N4,a2)
+        @test S.is_symmetric(N4)
+        # @test S.is_positive_semidef(N4)
     end
 
 

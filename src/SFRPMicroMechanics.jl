@@ -22,6 +22,6 @@ export is_isotropic, compute_orthotropic_properties
 export eshelby_tensor, SphericalInclusion, SpheroidalInclusion, DiscInclusion, ThinDiscInclusion, NeedleInclusion
 export ThermalExpansion, halpin_tsai, orientation_average, mori_tanaka
 export apparent_modulus
-export LinearClosure, QuadraticClosure, HybridClosure, HL1Closure, HL2Closure, ORF, ORS, ORL, ORFM, ORW, ORW3
+export LinearClosure, QuadraticClosure, HybridClosure, HL1Closure, HL2Closure, ORF, ORS, ORL, ORFM, ORW, ORW3, IBOF
 
 end # module SFRPMicroMechanics

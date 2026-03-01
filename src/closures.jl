@@ -406,7 +406,7 @@ function beta_coefficients(II, III)
     
     # β3, β4, β6
 
-    Ct =     [1 0.24940908165786e2      -0.497217790110754e0            0.234146291570999e2;
+    Ct =     [0.24940908165786e2      -0.497217790110754e0            0.234146291570999e2;
              -0.435101153160329e3        0.234987975114050e2           -0.412048043372534e3;
               0.372389335663877e4       -0.391044251397838e3            0.319553200392089e4;
               0.703443657916476e4        0.153965820593506e3            0.573259594331015e4;
@@ -457,11 +457,11 @@ function InvariantBasedOptimalFittedClosure(a::AbstractOrientationTensor)
     invariants = get_invariants(a)
     (β1, β2, β3, β4, β5, β6) = beta_coefficients(invariants.II, invariants.III)
     a2 = to_matrix(a)
-    b(i,j) = sum(a[i,m] * a[m, j] for m in 1:3)
+    b(i,j) = sum(a2[i,m] * a2[m, j] for m in 1:3)
 
     a4 = SArray{Tuple{3,3,3,3}}(
             1/3 * β1 * (δ(i,j)*δ(k,l) + δ(i,k) * δ(j,l) + δ(i,l) * δ(j,k)) +
-            1/6 * β2 * (δ(i,j) * a2[k,l] + δ(k,l) * a2(i,j) + δ(i,k) * a2(j,l) + δ(i,l) * a2(j,k) + δ(j,k) * a2(i,l)) +
+            1/6 * β2 * (δ(i,j) * a2[k,l] + δ(k,l) * a2[i,j] + δ(i,k) * a2[j,l] + δ(i,l) * a2[j,k] + δ(j,k) * a2[i,l]) +
             1/3 * β3 * (a2[i,j] * a2[k,l] + a2[i,k] * a2[j,l] + a2[i,l] * a2[j,k]) +
             1/6 * β4 * (δ(i,j) * b(k, l) + δ(k,l) * b(i, j) + δ(i, k) * b(j, l) + δ(j,l) * b(i, k) + δ(i,l) * b(j,k) + δ(j,k) * b(i,l)) +
             1/6 * β5 * (a2[i,j] * b(k,l) + a2[k,l] * b(i,j) + a2[i,k] * b(j,l) + a2[j,l] * b(i,k) + a2[i,l] * b(j,k) + a2[j,k] * b(i,l)) +
