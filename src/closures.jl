@@ -1,4 +1,100 @@
 abstract type AbstractClosure end #all 4th order closures
+
+
+function is_symmetric(A4; tol=1e-9)
+    # Check all permutations of i, j, k, l
+    for i in 1:3, j in 1:3, k in 1:3, l in 1:3
+        val = A4[i,j,k,l]
+        # Test just a few key permutations to ensure full symmetry
+        perms = [(j,i,k,l), (i,j,l,k), (k,l,i,j), (l,k,j,i)]
+        for p in perms
+            if abs(val - A4[p...]) > tol
+                return false
+            end
+        end
+    end
+    return true
+end
+
+function is_normalized(A4, a2; tol=1e-9)
+    # contracted A4 == a2
+    # Contract A4: A_ijkk
+    a2_recovered = zeros(3, 3)
+    for i in 1:3, j in 1:3
+        a2_recovered[i,j] = sum(A4[i,j,k,k] for k in 1:3)
+    end
+    
+    # Check if recovered a2 matches input a2 and if trace(a2) == 1
+    is_consistent = norm(a2_recovered - a2) < tol
+    is_normalized = abs(tr(a2_recovered) - 1.0) < tol
+    
+    return is_consistent && is_normalized
+end
+
+function is_positive_semidef(A4; tol=1e-9)
+    # Check diagonal components (must be non-negative)
+    for i in 1:3, j in 1:3
+        if A4[i,i,j,j] < -tol
+            return false
+        end
+    end
+    A66= convert_3333_to_66(A4;mandel = false)
+    eigv = eigvals(A66)
+    any(eigv .< -tol) && return false 
+    return true
+end
+
+
+
+"""
+    test_invariance(closure_func, a2; tol=1e-8)
+
+Tests if a closure approximation is frame-invariant.
+Returns true if Closure(R*a2*R') == Rotate(Closure(a2)).
+"""
+function is_invariant(CT::Type{<:AbstractClosure}, a2; tol=1e-8)
+    # 1. Generate a random 3x3 Rotation Matrix (R)
+    # We use QR decomposition of a random matrix to get an orthogonal matrix
+    Q, R_mat = qr(randn(3, 3))
+    R = Matrix(Q)
+    if det(R) < 0  # Ensure it's a rotation, not a reflection
+        R[:, 1] .*= -1
+    end
+
+    # 2. Path A: Rotate a2 first, then apply closure
+    a2_rotated = R * a2 * R'
+    A4_from_rotated_a2 = CT(a2_rotated)
+
+    # 3. Path B: Apply closure to original a2, then rotate the resulting A4
+    A4_original = CT(a2)
+    A4_rotated_manually = zeros(3, 3, 3, 3)
+
+    # Perform the 4th-order tensor rotation: A'_{ijkl} = R_im R_jn R_kp R_lq A_mnpq
+    for i=1:3, j=1:3, k=1:3, l=1:3
+        val = 0.0
+        for m=1:3, n=1:3, p=1:3, q=1:3
+            val += R[i,m] * R[j,n] * R[k,p] * R[l,q] * A4_original[m,n,p,q]
+        end
+        A4_rotated_manually[i,j,k,l] = val
+    end
+
+    # 4. Compare results
+    diff = norm(A4_from_rotated_a2 - A4_rotated_manually)
+    
+    # println("Rotation Invariance Residual: ", diff)
+    return diff < tol
+end
+
+
+
+function test_closure_approximation(a::AbstractOrientationTensor, CT::Type{<:AbstractClosure}; tol = 1e-9) 
+    a2 = to_matrix(a)
+    A4 = closure(a, CT)
+
+    return is_symmetric(A4;tol) && is_normalized(A4, a2; tol) && is_positive_semidef(A4;tol) && is_invariant(CT, a2)
+end
+
+
 abstract type AbstractSimpleClosure <: AbstractClosure end
 
 struct LinearClosure     <: AbstractSimpleClosure end
@@ -7,10 +103,10 @@ struct HybridClosure     <: AbstractSimpleClosure end
 struct HL1Closure        <: AbstractSimpleClosure end
 struct HL2Closure        <: AbstractSimpleClosure end
 
-function compute_closure(a::AbstractOrientationTensor, closure::AbstractSimpleClosure)
+function closure(a::AbstractOrientationTensor, CT::Type{<:AbstractSimpleClosure})
     a2 = to_matrix(a)
 
-    return closure(a2)
+    return CT(a2)
 end
 
 
@@ -100,13 +196,15 @@ struct ORW  <: AbstractOrthotropicClosure end
 struct ORW3 <: AbstractOrthotropicClosure end
 struct ORFM <: AbstractOrthotropicClosure end
 
-function compute_closure(a::AbstractOrientationTensor, closure::AbstractOrthotropicClosure)
-    (aeig, R33) = decompose_eigenvalue #eigenvalue decomposition and rotation matrix 3x3
+function closure(a::AbstractOrientationTensor, CT::Type{<:AbstractOrthotropicClosure})
+    res = decompose_eigenvalue(a) #eigenvalue decomposition and rotation matrix 3x3
+    aeig = res.tensor
+    R33 = res.rotation
     R66 = convert_rot_33_to_66(R33) #rotation matrix 6x6 voigt
     a11, a22 = aeig.a11, aeig.a22
-    c66 = closure(a11, a22) #compute the actual closure
+    c66 = CT(a11, a22) #compute the actual closure
     
-    return R66 * c66 * R66'#finally rotate back
+    return convert_66_to_3333(R66 * c66 * R66'; mandel = false)#finally rotate back
 end
 
 
@@ -217,7 +315,7 @@ function ortho_poly_10_terms(a1, a2, C)
             C[m,  7] * a1 * a1 * a2 +
             C[m,  8] * a1 * a2 * a2 +
             C[m,  9] * a1 * a1 * a1 +
-            C[m, 10] * a2 * a2 * a2  )
+            C[m, 10] * a2 * a2 * a2  for m in 1:3)
 
     return compute_eigenvalue_closure_matrix(a1, a2, Aii...)
 end

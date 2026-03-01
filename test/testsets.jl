@@ -510,3 +510,31 @@ end
 
 
 end
+
+
+@testset "Closures" verbose = true begin
+
+    S = SFRPMicroMechanics
+    CTs = [S.LinearClosure, 
+           S.QuadraticClosure, 
+           S.HybridClosure, 
+           S.HL1Closure,
+           S.HL2Closure,
+           S.ORF, 
+           S.ORL, 
+           S.ORFM, 
+           S.ORW, 
+           S.ORW3]
+
+    Q, rot = qr(randn(3,3))
+    R = Matrix(Q)
+    adiag = diagm([0.6, 0.3, 0.1])
+    amat = R * adiag * R'
+    a = S.FullOrientationTensor(amat[1, 1], amat[2,2], amat[2,3], amat[1,3], amat[1,2])
+    for CT in CTs
+        @info "CT = $CT"
+        @test S.test_closure_approximation(a, CT; tol = 1e-8)
+    end
+
+
+end

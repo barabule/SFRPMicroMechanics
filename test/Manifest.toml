@@ -2,7 +2,7 @@
 
 julia_version = "1.12.3"
 manifest_format = "2.0"
-project_hash = "5e99f296974831693e9de8f1ad69c639b34a92f1"
+project_hash = "2c9b0b993fd5088efc785aa932f0dc5a4e6b71bf"
 
 [[deps.AbstractFFTs]]
 deps = ["LinearAlgebra"]
@@ -1129,7 +1129,7 @@ uuid = "5eaf0fd0-dfba-4ccb-bf02-d820a40db705"
 version = "0.2.1"
 
 [[deps.SFRPMicroMechanics]]
-deps = ["GLMakie", "GeometryBasics", "LinearAlgebra", "StaticArrays", "Statistics"]
+deps = ["GLMakie", "GeometryBasics", "LinearAlgebra", "Random", "StaticArrays", "Statistics"]
 path = ".."
 uuid = "85b1d378-0dff-4863-a11e-e07702869b2f"
 version = "0.1.0"
