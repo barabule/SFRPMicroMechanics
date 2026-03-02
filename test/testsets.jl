@@ -559,6 +559,55 @@ end
 end
 
 
+@testset "Bond Matrix Validation" begin
+    S = SFRPMicroMechanics
+    I = S.LinearAlgebra.I
+    # 1. Setup a valid rotation Q (45 deg around Z-axis)
+    θ = π/4
+    Q =          [ cos(θ) -sin(θ) 0;
+                   sin(θ)  cos(θ) 0;
+                   0       0      1]
+    
+    @test isapprox(Q * Q', I, atol=1e-12) # Sanity check on Q
+
+    # 2. Generate the Bond Matrix M
+    M = S.convert_rot_33_to_66(Q)
+
+    # 3. TEST 1: Identity Mapping
+    M_eye = S.convert_rot_33_to_66(I)
+    @test isapprox(M_eye, I, atol=1e-12)
+
+    # 4. TEST 2: Isotropic Invariance
+    # Define an Isotropic Stiffness Matrix (C) in Voigt form
+    E, ν = 210e9, 0.3
+    λ = E*ν / ((1+ν)*(1-2ν))
+    μ = E / (2*(1+ν))
+    
+    C_iso =  [
+        λ+2μ  λ     λ     0   0   0;
+        λ     λ+2μ  λ     0   0   0;
+        λ     λ     λ+2μ  0   0   0;
+        0     0     0     μ   0   0;
+        0     0     0     0   μ   0;
+        0     0     0     0   0   μ
+    ]
+
+    # Transform: C_rotated = M * C_iso * M'
+    C_rot = M * C_iso * M'
+
+    # @test isapprox(C_rot, C_iso, atol=1e-7)
+    # @test S.LinearAlgebra.norm(C_rot - C_iso) < 1e-7
+    @test all(isapprox.(C_rot, C_iso, atol = 1e-7))
+    
+    # 5. TEST 3: Trace Invariance
+    # The sum of eigenvalues (or specific invariants) should hold.
+    @test isapprox(tr(C_rot), tr(C_iso), atol=1e-7)
+
+    # println("✅ All Bond Matrix tests passed!")
+end
+
+
+
 @testset "Closures" verbose = true begin
 
     S = SFRPMicroMechanics
