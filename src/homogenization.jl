@@ -41,8 +41,9 @@ function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
     Cm = isotropic_stiffness(Em, num)
     Cf = isotropic_stiffness(Ef, nuf)
     C_aligned = mori_tanaka(Cm, Cf, vf, AR, num)
-    N2 = to_matrix(OrientationTensor(a11, a22))
-    C_avg = orientation_average(C_aligned, N2)
+    a = OrientationTensor(a11, a22)
+    
+    C_avg = orientation_average(C_aligned, a)
     # return extract_orthotropic_constants(C_avg)
 end
 
@@ -144,11 +145,14 @@ end
 
 
 # Advani-Tucker Orientation Averaging
-function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = false)
+function orientation_average(C_aligned, a::AbstractOrientationTensor; 
+                            closure_type = HybridClosure::Type{<:AbstractClosure}, 
+                            mandel = false,
+                            )
     
     (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned) #this works
-    
-    a4 = closure(a2)
+    a2 = to_matrix(a)
+    a4 = closure(a, closure_type)
 
     Cavg = SArray{Tuple{3,3,3,3}}( 
                     B1 * a4[i, j, k, l] + 
@@ -160,10 +164,6 @@ function orientation_average(C_aligned, a2; closure = hybrid_closure, mandel = f
 
     return convert_3333_to_66(Cavg; mandel)
 end
-
-
-
-
 
 function orientation_averaging_coefficients(C)
     

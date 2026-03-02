@@ -1,3 +1,48 @@
+@testset "Bla" verbose = true begin
+    S = SFRPMicroMechanics
+    Em, num = 2.3456, 0.345
+    pm = S.IsotropicElasticParameters(Em, num)
+    Cm = S.stiffness_matrix_voigt(pm; mandel = true)
+    # @info "Cm"
+    # display(Cm)
+    
+    Ef, nuf = 78.91234, 0.23551
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+    Cf = S.stiffness_matrix_voigt(pf; mandel = true)
+    # @info "Cf"
+    # display(Cf)
+
+    vf = 0.23345
+    AR = 45.3424
+    
+    Cmt = S.mori_tanaka(Cm, Cf, vf, AR, num;mandel = true)
+    # @info "Cmt"
+    # display(Cmt)
+
+    a11, a22 = 0.5674, 0.3333
+    a = S.OrientationTensor(a11 ,a22)
+    N2 = S.to_matrix(a)
+    N4 = S.closure(a, S.HybridClosure)
+    display(N4)
+
+    Cavg = S.orientation_average(Cmt, a; mandel=true)
+    # @info "Cavg"
+    # display(Cavg)
+
+    Cavg_ref = [11.41172054   4.91443011    3.53631121    0        0            0;
+                4.91443011    7.9294915     3.08564431    0        0            0;
+                3.53631121    3.08564431    5.20297598    0        0            0;
+                 0            0              0       3.25600713    0            0;
+                 0            0              0            0        3.91019283   0;
+                 0            0              0            0        0         2.21728527]
+            
+                 
+    @test all(Cavg .≈ Cavg_ref)
+
+end
+
+
+
 @testset "Tensor Conversions" verbose = true begin
     C = SFRPMicroMechanics.isotropic_stiffness(210.0, 0.3)
     tens = SFRPMicroMechanics.convert_66_to_3333(C; mandel = false)
@@ -412,7 +457,8 @@ end
     # end
 
     a11, a22 = 0.7, 0.25
-    orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) |> SFRPMicroMechanics.to_matrix
+    
+    orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) 
     Cavg = SFRPMicroMechanics.orientation_average(Ceff, orientation_tensor; mandel)
 
     @info "Cavg"
