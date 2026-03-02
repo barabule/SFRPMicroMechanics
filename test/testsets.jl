@@ -1,8 +1,8 @@
-@testset "Bla" verbose = true begin
+@testset "Basic Workflow" verbose = true begin
     S = SFRPMicroMechanics
     Em, num = 2.3456, 0.345
-    pm = S.IsotropicElasticParameters(Em, num)
-    Cm = S.stiffness_matrix_voigt(pm; mandel = true)
+    pm = S.IsotropicElasticParameters(Em, num) #elastic properties
+    Cm = S.stiffness_matrix_voigt(pm; mandel = true) #stiffness matrix
     # @info "Cm"
     # display(Cm)
     
@@ -16,6 +16,8 @@
     AR = 45.3424
     
     Cmt = S.mori_tanaka(Cm, Cf, vf, AR, num;mandel = true)
+    #maybe better
+    #mt = S.mori_tanake(pm, pf, vf, AR;kwargs...)
     # @info "Cmt"
     # display(Cmt)
 
@@ -232,7 +234,7 @@ end
     vf = 0.2
     C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
     res = SFRPMicroMechanics.extract_orthotropic_constants(C)
-    ROM_E1 = vf * Ef + (1 - vf) * Em
+    ROM_E1 = vf * Ef + (1 - vf) * Em #rule of mixtures 
     @info "E1 computed = $(res.E1)"
     @info "Upper bound = $ROM_E1"
     @test res.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
@@ -598,7 +600,10 @@ end
     # @test isapprox(C_rot, C_iso, atol=1e-7)
     # @test S.LinearAlgebra.norm(C_rot - C_iso) < 1e-7
     @test all(isapprox.(C_rot, C_iso, atol = 1e-7))
-    
+    @info "C_rot"
+    display(C_rot)
+    @info("C_iso")
+    display(C_iso)
     # 5. TEST 3: Trace Invariance
     # The sum of eigenvalues (or specific invariants) should hold.
     @test isapprox(tr(C_rot), tr(C_iso), atol=1e-7)

@@ -81,7 +81,43 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m;
     return SMatrix{6,6}(C_eff)
 end
 
+function mori_tanaka(pm::IsotropicElasticParameters, fibers; mandel = false)
 
+    Cm = stiffness_matrix_voigt(pm; mandel)
+    invCm = inv(Cm)
+
+    T  = eltype(Cm)
+    MT = SMatrix{6,6, T}
+    
+    nu_m = pm.nu
+
+
+    #precompute everything
+    Cfs =      Vector{MT}()
+    Adils =    Vector{MT}()
+    # Stensors = Vector{MT}()
+    vfs = (fiber.volume_fraction for fiber in fibers)
+    for fiber in fibers
+        vf = fiber.volume_fraction
+        Cf = stiffness_matrix_voigt(fiber.elastic_properties; mandel)
+        push!(Cfs, Cf)
+        S = eshelby_tensor(fiber.shape(nu_m, fiber.AR))
+        # push!(Stensors, S)
+        Adil = inv(vf * I + S * invCm * (Cf - Cm))
+        push!(Adils, Adil)
+    end
+
+    Ceff = MMatrix{6,6}(Cm)
+    for (i, fiber) in enumerate(fibers)
+        
+        Adil = Adils[i]
+        vf = fiber.volume_fraction
+        Cf = Cfs[i]
+        ArMT = Adil * inv(vf * I + sum(vfs[i] * Adils[i] for i in eachindex(fibers)))
+        Ceff += vf * (Cf - Cm) * ArMT
+    end
+    return SMatrix{6,6}(C_eff)
+end
 
 
 
