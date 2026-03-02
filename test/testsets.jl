@@ -23,12 +23,13 @@
     a = S.OrientationTensor(a11 ,a22)
     N2 = S.to_matrix(a)
     N4 = S.closure(a, S.HybridClosure)
-    display(N4)
+    # display(N4)
 
     Cavg = S.orientation_average(Cmt, a; mandel=true)
-    # @info "Cavg"
-    # display(Cavg)
+    @info "Cavg"
+    display(Cavg)
 
+    #taken from homopy with the same parameters
     Cavg_ref = [11.41172054   4.91443011    3.53631121    0        0            0;
                 4.91443011    7.9294915     3.08564431    0        0            0;
                 3.53631121    3.08564431    5.20297598    0        0            0;
@@ -457,7 +458,7 @@ end
     # end
 
     a11, a22 = 0.7, 0.25
-    
+
     orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) 
     Cavg = SFRPMicroMechanics.orientation_average(Ceff, orientation_tensor; mandel)
 

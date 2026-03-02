@@ -154,10 +154,15 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
     a2 = to_matrix(a)
     a4 = closure(a, closure_type)
 
+    # The Advani-Tucker orientation averaging formula:
+#     # <C_ijkl> = b1(a_ijkl) + b2(a_ij*d_kl + a_kl*d_ij) + 
+#     #            b3(a_ik*d_jl + a_il*d_jk + a_jl*d_ik + a_jk*d_il) + 
+#     #            b4(d_ij*d_kl) + b5(d_ik*d_jl + d_il*d_jk)
+
     Cavg = SArray{Tuple{3,3,3,3}}( 
                     B1 * a4[i, j, k, l] + 
                     B2 * (a2[i, j] * δ(k,l) + a2[k, l] * δ(i, j)) +
-                    B3 * (a2[i, k] * δ(j, l) + a2[j, l] * δ(i, k) + a2[i,l] * δ(j, k) + a2[j, k] * δ(i, l)) +
+                    B3 * (a2[i, k] * δ(j, l) + a2[i,l] * δ(j, k) + a2[j, l] * δ(i, k) + a2[j, k] * δ(i, l)) +
                     B4 * (δ(i, j) * δ(k, l)) + 
                     B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
                     for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
@@ -166,7 +171,16 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
 end
 
 function orientation_averaging_coefficients(C)
-    
+    # Define the 5 invariants for a transversely isotropic material 
+    # based on the aligned stiffness tensor components.
+    # These are derived from the terms in Advani & Tucker (1987).
+    # Extract components from the aligned tensor (assuming 1 is the fiber direction)
+#     b1 = Caligned[1,1,1,1] + Caligned[2,2,2,2] - 2*Caligned[1,1,2,2] - 4*Caligned[1,2,1,2]
+#     b2 = Caligned[1,1,2,2] - Caligned[2,2,3,3]
+#     b3 = Caligned[1,2,1,2] + 0.5 * (Caligned[2,2,3,3] - Caligned[2,2,2,2])
+#     b4 = Caligned[2,2,3,3]
+#     b5 = 0.5 * (Caligned[2,2,2,2] - Caligned[2,2,3,3])
+
     B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
     B2 = C[1,2] - C[2,3]
     B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
@@ -176,3 +190,55 @@ function orientation_averaging_coefficients(C)
     return (B1, B2, B3, B4, B5)
 end
 
+using LinearAlgebra
+
+
+#Gemini generated
+# """
+#     orientation_average(Caligned, N2, N4)
+
+# Computes the orientation-averaged stiffness tensor for SFRP.
+# Assumes Caligned is a 3x3x3x3 tensor (or a 6x6 Voigt matrix converted to 4D).
+# N2 is the 2nd order orientation tensor (3x3).
+# N4 is the 4th order orientation tensor (3x3x3x3).
+# """
+# function orientation_average(Caligned, N2, N4)
+#     # Define the 5 invariants for a transversely isotropic material 
+#     # based on the aligned stiffness tensor components.
+#     # These are derived from the terms in Advani & Tucker (1987).
+    
+#     # Extract components from the aligned tensor (assuming 1 is the fiber direction)
+#     b1 = Caligned[1,1,1,1] + Caligned[2,2,2,2] - 2*Caligned[1,1,2,2] - 4*Caligned[1,2,1,2]
+#     b2 = Caligned[1,1,2,2] - Caligned[2,2,3,3]
+#     b3 = Caligned[1,2,1,2] + 0.5 * (Caligned[2,2,3,3] - Caligned[2,2,2,2])
+#     b4 = Caligned[2,2,3,3]
+#     b5 = 0.5 * (Caligned[2,2,2,2] - Caligned[2,2,3,3])
+
+#     C_avg = zeros(3, 3, 3, 3)
+
+#     # The Advani-Tucker orientation averaging formula:
+#     # <C_ijkl> = b1(a_ijkl) + b2(a_ij*d_kl + a_kl*d_ij) + 
+#     #            b3(a_ik*d_jl + a_il*d_jk + a_jl*d_ik + a_jk*d_il) + 
+#     #            b4(d_ij*d_kl) + b5(d_ik*d_jl + d_il*d_jk)
+
+#     δ = I(3) # Kronecker Delta
+
+#     for i in 1:3, j in 1:3, k in 1:3, l in 1:3
+#         # Term 1: 4th order orientation
+#         term1 = b1 * N4[i,j,k,l]
+        
+#         # Term 2: Coupling 2nd order with identity
+#         term2 = b2 * (N2[i,j]*δ[k,l] + N2[k,l]*δ[i,j])
+        
+#         # Term 3: Symmetric coupling
+#         term3 = b3 * (N2[i,k]*δ[j,l] + N2[i,l]*δ[j,k] + N2[j,l]*δ[i,k] + N2[j,k]*δ[i,l])
+        
+#         # Term 4 & 5: Isotropic components
+#         term4 = b4 * (δ[i,j]*δ[k,l])
+#         term5 = b5 * (δ[i,k]*δ[j,l] + δ[i,l]*δ[j,k])
+        
+#         C_avg[i,j,k,l] = term1 + term2 + term3 + term4 + term5
+#     end
+
+#     return C_avg
+# end
