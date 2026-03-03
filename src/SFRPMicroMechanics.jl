@@ -17,6 +17,7 @@ include("analyse.jl")
 
 
 # Re-export main functions for the user
+export mori_tanaka, FiberPhase
 export IsotropicElasticParameters, OrthotropicElasticParameters, stiffness_matrix_voigt, extract_orthotropic_constants
 export is_isotropic, compute_orthotropic_properties
 export eshelby_tensor, SphericalInclusion, SpheroidalInclusion, DiscInclusion, ThinDiscInclusion, NeedleInclusion
