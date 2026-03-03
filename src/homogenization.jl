@@ -263,27 +263,12 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
     return convert_3333_to_66(Cavg; mandel)
 end
 
-# function orientation_averaging_coefficients(C)
-#     # Define the 5 invariants for a transversely isotropic material 
-#     # based on the aligned stiffness tensor components.
-#     # These are derived from the terms in Advani & Tucker (1987).
-#     # Extract components from the aligned tensor (assuming 1 is the fiber direction)
-
-
-#     B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
-#     B2 = C[1,2] - C[2,3]
-#     B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
-#     B4 = C[2,3]
-#     B5 = 1/2 * (C[2,2] - C[2,3])
-
-#     return (B1, B2, B3, B4, B5)
-# end
 
 function orientation_averaging_coefficients(C; mandel = false)
     tens = convert_66_to_3333(C; mandel)
 
     B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]
-
+           
     B2 = tens[1,1,2,2] - tens[2,2,3,3]
 
     B3 = tens[1,2,1,2] + 1/2 * (tens[2,2,3,3] - tens[2,2,2,2])
@@ -294,3 +279,4 @@ function orientation_averaging_coefficients(C; mandel = false)
 
     return (B1, B2, B3, B4, B5)
 end
+

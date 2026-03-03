@@ -21,8 +21,8 @@
 
     Cmt = S.mori_tanaka(pm, fibers;mandel = true, symmetrize = true)
     #
-    @info "Cmt"
-    display(Cmt)
+    # @info "Cmt"
+    # display(Cmt)
 
 
     a11, a22 = 0.5674, 0.3333
@@ -32,8 +32,8 @@
     # display(N4)
 
     Cavg = S.orientation_average(Cmt, a; mandel=true)
-    @info "Cavg"
-    display(Cavg)
+    # @info "Cavg"
+    # display(Cavg)
 
     #taken from homopy with the same parameters
     Cavg_ref = [11.41172054   4.91443011    3.53631121    0        0            0;
@@ -189,7 +189,40 @@ end
 
 end
 
+@testset "Orientation Averaging" verbose = true begin
+    S = SFRPMicroMechanics
+    ar = 1.0
+    vf = 0.15
+    Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
+    a11 = 0.7
+    a22 = 0.25
+    mandel = true
+    #mori tanaka should already be isotropic 
+    pm = S.IsotropicElasticParameters(Em, num)
+    Cm = S.stiffness_matrix_voigt(pm;mandel)
+    
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+    Cf = S.stiffness_matrix_voigt(pf;mandel)
 
+    Tf = S.convert_66_to_3333(Cf; mandel)
+    # @info "Tf"
+    # display(Tf)
+
+    bs = S.orientation_averaging_coefficients(Cf;mandel)
+    # @info "bs"
+    # display(bs)
+
+    bs_ref = [-2.9103830456733704e-11
+                0.0
+                7.275957614183426e-12
+                22540.983606557376
+                28688.524590163935
+]
+@test all(isapprox.(bs, bs_ref, atol=1e-6))
+    # for (b, b_ref) in zip(bs, bs_ref)
+    #     @test b ≈ b_ref atol=1e-6
+    # end
+end
     
 @testset "Spherical Inclusion Limit" verbose = true begin
     # Aspect Ratio = 1.0 means fibers are spheres. 
@@ -204,18 +237,20 @@ end
     #mori tanaka should already be isotropic 
     pm = S.IsotropicElasticParameters(Em, num)
     Cm = S.stiffness_matrix_voigt(pm;mandel)
-
+    
     pf = S.IsotropicElasticParameters(Ef, nuf)
     Cf = S.stiffness_matrix_voigt(pf;mandel)
     
     Cmt = S.mori_tanaka(Cm, Cf, vf, ar, num)
-    @info "Sphere Cmt"
-    display(Cmt)
+    # @info "Sphere Cmt"
+    # display(Cmt)
     @test S.is_structurally_isotropic(Cmt) #this is very stringent
     
+    # @info "Cmt 3333"
+    display(S.convert_66_to_3333(Cmt;mandel))
     bs = S.orientation_averaging_coefficients(Cmt)
-    @info "Bs"
-    display(bs)
+    # @info "Bs"
+    # display(bs)
 
     # display(Cmt)
     elprops = S.extract_orthotropic_constants(Cmt)
@@ -225,10 +260,10 @@ end
 
     a = S.OrientationTensor(a11, a22)
     Cavg = S.orientation_average(Cmt, a)
-    @info "Sphere Cavg"
-    display(Cavg) #almost isotropic...
+    # @info "Sphere Cavg"
+    # display(Cavg) #almost isotropic...
     elprops = S.extract_orthotropic_constants(Cavg)
-    display(elprops)
+    # display(elprops)
     @test S.is_isotropic(Cavg)
 end
     
@@ -280,16 +315,16 @@ end
         elprops = S.extract_orthotropic_constants(Cmt)
         
         ROM_E1 = vf * Ef + (1 - vf) * Em #rule of mixtures 
-        @info "E1 computed = $(elprops.E1)"
-        @info "Upper bound = $ROM_E1"
+        # @info "E1 computed = $(elprops.E1)"
+        # @info "Upper bound = $ROM_E1"
         @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
 
         Cavg = S.orientation_average(Cmt, S.OrientationTensor(a11, a22);mandel)
         elprops = S.extract_orthotropic_constants(Cavg)
         
         
-        @info "E1 computed avg = $(elprops.E1)"
-        @info "Upper bound = $ROM_E1"
+        # @info "E1 computed avg = $(elprops.E1)"
+        # @info "Upper bound = $ROM_E1"
         @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
 
     end
@@ -359,18 +394,18 @@ end
     vf = 0.1
     (Cht, constants) = SFRPMicroMechanics.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
     
-    display(constants)
+    # display(constants)
     B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht)
     Bref = (4680.46e-3, -18.18e-3, 16.97e-3, 2006.85e-3, 637.66e-3)
 
     for i in 1:5
-        @info "B$i" B[i]
+        # @info "B$i" B[i]
         @test B[i] ≈ Bref[i] atol=1e-4
 
     end
 
     el_const2 = SFRPMicroMechanics.extract_orthotropic_constants(Cht)
-    display(el_const2)
+    # display(el_const2)
     
     (a1, a2, a3, a4, a5, a6) = (0.7171, 0.2389, 0.0439, -0.0043, 0.0068, -0.0165)
 
