@@ -131,18 +131,37 @@ end
 
 
 @testset "Anisotropic Properties" verbose = true begin
+    S = SFRPMicroMechanics
+
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
-    # C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    # props = SFRPMicroMechanics.extract_orthotropic_constants(C)
-    # @info props
-    mandel = true
-    # shape = SFRPMicroMechanics.SpheroidalInclusion(num, ar)
-    Cavg = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    props = SFRPMicroMechanics.extract_orthotropic_constants(Cavg)
-    @test props.E1 > props.E2
-    @test isapprox(props.E2, props.E3, rtol=1e-3)
-    display(Cavg)
     
+    pm = S.IsotropicElasticParameters(Em, num)
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+
+    shape = S.SpheroidalInclusion()
+    a = S.OrientationTensor(a11, a22)
+    fibers = [S.FiberPhase(pf, vf, ar, shape, nothing)]
+
+    mandel = true
+    Ceff = S.mori_tanaka(pm, fibers;mandel)
+    @info "Ceff"
+    display(Ceff)
+    el_props = S.extract_orthotropic_constants(Ceff)
+    @test el_props.E1 > el_props.E2
+    @test el_props.E2 ≈ el_props.E3
+
+    closure_type = S.HybridClosure
+    N4 = S.closure(a, closure_type)
+    # @info "N4"
+    # display(N4)
+    Cavg = S.orientation_average(Ceff, a;mandel, closure_type)
+    el_props = S.extract_orthotropic_constants(Cavg)
+    @test el_props.E1 > el_props.E2 #a11 > a22
+    @test el_props.E2 > el_props.E3 #a22>a33
+    # @info "Cavg"
+    # display(Cavg)
+    # @info "el props Cavg"
+    # display(el_props)
 end
 
 @testset "Extracted Props" verbose = true begin
@@ -175,6 +194,7 @@ end
 @testset "Spherical Inclusion Limit" verbose = true begin
     # Aspect Ratio = 1.0 means fibers are spheres. 
     # Spheres are isotropic; E1 should equal E2 even with aligned a11.
+    S = SFRPMicroMechanics
     ar = 1.0
     vf = 0.15
     Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
@@ -182,24 +202,34 @@ end
     a22 = 0.25
     mandel = true
     #mori tanaka should already be isotropic 
-    pm = SFRPMicroMechanics.IsotropicElasticParameters(Em, num)
-    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm;mandel)
-    pf = SFRPMicroMechanics.IsotropicElasticParameters(Ef, nuf)
-    Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf;mandel)
-    Cmt = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, num)
-    @test SFRPMicroMechanics.is_structurally_isotropic(Cmt) #this is very stringent
+    pm = S.IsotropicElasticParameters(Em, num)
+    Cm = S.stiffness_matrix_voigt(pm;mandel)
+
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+    Cf = S.stiffness_matrix_voigt(pf;mandel)
     
+    Cmt = S.mori_tanaka(Cm, Cf, vf, ar, num)
+    @info "Sphere Cmt"
+    display(Cmt)
+    @test S.is_structurally_isotropic(Cmt) #this is very stringent
+    
+    bs = S.orientation_averaging_coefficients(Cmt)
+    @info "Bs"
+    display(bs)
+
     # display(Cmt)
-    elprops = SFRPMicroMechanics.extract_orthotropic_constants(Cmt)
+    elprops = S.extract_orthotropic_constants(Cmt)
     @test elprops.E1 ≈ elprops.E2 ≈ elprops.E3
     @test elprops.nu21 ≈ elprops.nu32 ≈ elprops.nu31
     @test elprops.G12 ≈ elprops.G23 ≈ elprops.G31
 
-    Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    display(Ceff) #almost isotropic...
-    elprops = SFRPMicroMechanics.extract_orthotropic_constants(Ceff)
+    a = S.OrientationTensor(a11, a22)
+    Cavg = S.orientation_average(Cmt, a)
+    @info "Sphere Cavg"
+    display(Cavg) #almost isotropic...
+    elprops = S.extract_orthotropic_constants(Cavg)
     display(elprops)
-    @test SFRPMicroMechanics.is_isotropic(Ceff)
+    @test S.is_isotropic(Cavg)
 end
     
 @testset "Unidirectional (UD) Alignment" verbose = true begin
@@ -232,18 +262,39 @@ end
 @testset "Bounds Check (Rule of Mixtures)" verbose = true begin
     # The longitudinal modulus E1 of a UD composite (a11=1) 
     # should never exceed the Voigt Upper Bound (Rule of Mixtures).
+    S = SFRPMicroMechanics
     a11, a22  = 1.0, 0.0
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 1000.0
     vf = 0.2
-    C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22) # AR=1000 ~ continuous
-    res = SFRPMicroMechanics.extract_orthotropic_constants(C)
-    ROM_E1 = vf * Ef + (1 - vf) * Em #rule of mixtures 
-    @info "E1 computed = $(res.E1)"
-    @info "Upper bound = $ROM_E1"
-    @test res.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
-    # Explanation: Micromechanics models must respect thermodynamic bounds.
 
+    mandel = true
+
+    pm = S.IsotropicElasticParameters(Em, num)
+    pf  =S.IsotropicElasticParameters(Ef, nuf)
+    shapes  = [S.NeedleInclusion(), S.SpheroidalInclusion()]
+    for shape in shapes
+        @info "$shape"
+        fibers = [S.FiberPhase(pf, vf, aspect_ratio, shape, nothing)]
+        Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize=true)
+        elprops = S.extract_orthotropic_constants(Cmt)
+        
+        ROM_E1 = vf * Ef + (1 - vf) * Em #rule of mixtures 
+        @info "E1 computed = $(elprops.E1)"
+        @info "Upper bound = $ROM_E1"
+        @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
+
+        Cavg = S.orientation_average(Cmt, S.OrientationTensor(a11, a22);mandel)
+        elprops = S.extract_orthotropic_constants(Cavg)
+        
+        
+        @info "E1 computed avg = $(elprops.E1)"
+        @info "Upper bound = $ROM_E1"
+        @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
+
+    end
+    # Explanation: Micromechanics models must respect thermodynamic bounds.
+    #TODO fails for SpheroidalInclusion
 end
 
 @testset "Apparent Elastic Modulus" verbose = true begin

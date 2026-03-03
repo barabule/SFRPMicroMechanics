@@ -93,12 +93,12 @@ end
                     DiscInclusion(), ThinDiscInclusion()
 
 """
-struct FiberPhase{T1<:AbstractElasticParameters, T<:Real, S<:InclusionGeometry}   
+Base.@kwdef struct FiberPhase{T1<:AbstractElasticParameters, T<:Real, S<:InclusionGeometry}   
     elastic_properties::T1
     volume_fraction::T
     aspect_ratio::T
     shape::S
-    thermal_expansion::ThermalExpansion{T}
+    thermal_expansion::Union{Nothing, ThermalExpansion{T}}=nothing
 end
 
 
@@ -170,7 +170,15 @@ function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:Fi
     return C_MT
 end
 
+function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
+                    volume_fraction, aspect_ratio)
 
+    Em, nu_m = pm.E, pm.nu
+    Ef, nu_f = pf.E, pf.nu
+    vf = volume_fraction
+    ar = aspect_ratio
+    return halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+end
 
 function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
 
@@ -235,7 +243,7 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
                             mandel = false,
                             )
     
-    (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned) #this works
+    (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned; mandel) #this works
     a2 = to_matrix(a)
     a4 = closure(a, closure_type)
 
@@ -255,22 +263,34 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
     return convert_3333_to_66(Cavg; mandel)
 end
 
-function orientation_averaging_coefficients(C)
-    # Define the 5 invariants for a transversely isotropic material 
-    # based on the aligned stiffness tensor components.
-    # These are derived from the terms in Advani & Tucker (1987).
-    # Extract components from the aligned tensor (assuming 1 is the fiber direction)
-#     b1 = Caligned[1,1,1,1] + Caligned[2,2,2,2] - 2*Caligned[1,1,2,2] - 4*Caligned[1,2,1,2]
-#     b2 = Caligned[1,1,2,2] - Caligned[2,2,3,3]
-#     b3 = Caligned[1,2,1,2] + 0.5 * (Caligned[2,2,3,3] - Caligned[2,2,2,2])
-#     b4 = Caligned[2,2,3,3]
-#     b5 = 0.5 * (Caligned[2,2,2,2] - Caligned[2,2,3,3])
+# function orientation_averaging_coefficients(C)
+#     # Define the 5 invariants for a transversely isotropic material 
+#     # based on the aligned stiffness tensor components.
+#     # These are derived from the terms in Advani & Tucker (1987).
+#     # Extract components from the aligned tensor (assuming 1 is the fiber direction)
 
-    B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
-    B2 = C[1,2] - C[2,3]
-    B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
-    B4 = C[2,3]
-    B5 = 1/2 * (C[2,2] - C[2,3])
+
+#     B1 = C[1,1] + C[2,2]  - 2C[1, 2] - 4C[6,6]
+#     B2 = C[1,2] - C[2,3]
+#     B3 = C[6,6] + 1/2 * (C[2,3] - C[2,2])
+#     B4 = C[2,3]
+#     B5 = 1/2 * (C[2,2] - C[2,3])
+
+#     return (B1, B2, B3, B4, B5)
+# end
+
+function orientation_averaging_coefficients(C; mandel = false)
+    tens = convert_66_to_3333(C; mandel)
+
+    B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]
+
+    B2 = tens[1,1,2,2] - tens[2,2,3,3]
+
+    B3 = tens[1,2,1,2] + 1/2 * (tens[2,2,3,3] - tens[2,2,2,2])
+
+    B4 = tens[2,2,3,3]
+
+    B5 = 1/2 * (tens[2,2,2,2] - tens[2,2,3,3])
 
     return (B1, B2, B3, B4, B5)
 end
