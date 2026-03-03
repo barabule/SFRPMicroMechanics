@@ -60,14 +60,14 @@ function mt_dilute_tensor(Cm, Cf, S)
 end
 
 function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m; 
-                    fiber_shape = SpheroidalInclusion, 
+                    fiber_shape = SpheroidalInclusion()::InclusionGeometry, 
                     mandel = false,
                     )
 
     T = eltype(Cm)
     I = SMatrix{6,6, T}(LinearAlgebra.I)
     
-    S= convert_3333_to_66(eshelby_tensor(fiber_shape(nu_m, AR)); mandel)
+    S= convert_3333_to_66(eshelby_tensor(fiber_shape, nu_m, AR); mandel)
     
     A_dilute = mt_dilute_tensor(Cm, Cf, S)
     
@@ -81,7 +81,20 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m;
     return SMatrix{6,6}(C_eff)
 end
 
-function mori_tanaka(pm::IsotropicElasticParameters, fibers; mandel = false)
+
+struct FiberPhase{T1<:AbstractElasticParameters, T<:Real, S<:InclusionGeometry}   
+    elastic_properties::T1
+    volume_fraction::T
+    aspect_ratio::T
+    shape::S
+end
+
+
+
+function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
+                    mandel = false,
+                    # symmetrize = false,
+                    )
 
     Cm = stiffness_matrix_voigt(pm; mandel)
     invCm = inv(Cm)
@@ -91,32 +104,30 @@ function mori_tanaka(pm::IsotropicElasticParameters, fibers; mandel = false)
     
     nu_m = pm.nu
 
+    vm = 1- sum(f.volume_fraction for f in fibers) #volfrac matrix
 
-    #precompute everything
-    Cfs =      Vector{MT}()
-    Adils =    Vector{MT}()
-    # Stensors = Vector{MT}()
-    vfs = (fiber.volume_fraction for fiber in fibers)
+    Trs = Vector{MT}()
+    ΣvfTr = MT(zeros(6,6))
+    Cfs = Vector{MT}()
+    
+    
     for fiber in fibers
         vf = fiber.volume_fraction
+        shape = fiber.shape
+        AR = fiber.aspect_ratio
+        Sr = convert_3333_to_66(eshelby_tensor(shape, nu_m, AR); mandel)
         Cf = stiffness_matrix_voigt(fiber.elastic_properties; mandel)
         push!(Cfs, Cf)
-        S = eshelby_tensor(fiber.shape(nu_m, fiber.AR))
-        # push!(Stensors, S)
-        Adil = inv(vf * I + S * invCm * (Cf - Cm))
-        push!(Adils, Adil)
-    end
-
-    Ceff = MMatrix{6,6}(Cm)
-    for (i, fiber) in enumerate(fibers)
+        Tr = inv(I + Sr * invCm * (Cf - Cm))
+        push!(Trs, Tr)
+        ΣvfTr += vf * Tr
         
-        Adil = Adils[i]
-        vf = fiber.volume_fraction
-        Cf = Cfs[i]
-        ArMT = Adil * inv(vf * I + sum(vfs[i] * Adils[i] for i in eachindex(fibers)))
-        Ceff += vf * (Cf - Cm) * ArMT
     end
-    return SMatrix{6,6}(C_eff)
+    Y = (vm * I + ΣvfTr)
+    
+    X = sum(fibers[i].volume_fraction * I * (Cfs[i] - Cm) * Trs[i]  for i in eachindex(Trs))
+
+    return C_MT = Cm + X * inv(Y)
 end
 
 

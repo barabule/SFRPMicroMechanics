@@ -15,11 +15,12 @@
     vf = 0.23345
     AR = 45.3424
     
-    Cmt = S.mori_tanaka(Cm, Cf, vf, AR, num;mandel = true)
-    #maybe better
-    #mt = S.mori_tanake(pm, pf, vf, AR;kwargs...)
-    # @info "Cmt"
-    # display(Cmt)
+    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())]
+
+    Cmt = S.mori_tanaka(pm, fibers;mandel = true)
+    #
+    @info "Cmt"
+    display(Cmt)
 
     a11, a22 = 0.5674, 0.3333
     a = S.OrientationTensor(a11 ,a22)
@@ -111,16 +112,16 @@ end
 @testset "Eshelby Tensor" verbose = true begin
     AR = 1e6 #S1111 -> 0 when AR-> Inf
     nu = 0.3
-    shape =SFRPMicroMechanics.SpheroidalInclusion(nu, AR)
-    S  = SFRPMicroMechanics.eshelby_tensor(shape) |> SFRPMicroMechanics.convert_3333_to_66
+    shape =SFRPMicroMechanics.SpheroidalInclusion()
+    S  = SFRPMicroMechanics.eshelby_tensor(shape, nu, AR) |> SFRPMicroMechanics.convert_3333_to_66
     # display(S)
     @test S[1,1] <= sqrt(eps(Float64))
     
     AR = 1e-10 #S1111 -> 1 when AR-> 0
-    shape = SFRPMicroMechanics.SpheroidalInclusion(nu, AR) 
-    S  = SFRPMicroMechanics.eshelby_tensor(shape) |> SFRPMicroMechanics.convert_3333_to_66
+    shape = SFRPMicroMechanics.SpheroidalInclusion() 
+    S  = SFRPMicroMechanics.eshelby_tensor(shape, nu, AR) |> SFRPMicroMechanics.convert_3333_to_66
     @test S[1,1] ≈ 1
-    Slimit = SFRPMicroMechanics.ThinDiscInclusion(nu, AR) |> SFRPMicroMechanics.eshelby_tensor |> SFRPMicroMechanics.convert_3333_to_66
+    Slimit = SFRPMicroMechanics.eshelby_tensor(ThinDiscInclusion(),nu, AR)  |> SFRPMicroMechanics.convert_3333_to_66
     # @test all(Slimit .≈ S)
     @test Slimit[1,1] ≈ S[1,1]
 end
@@ -394,8 +395,8 @@ end
     alfa_f = 5e-6
     cte_f = SFRPMicroMechanics.ThermalExpansion(alfa_f)
     AR = 50
-    Sf = SFRPMicroMechanics.SpheroidalInclusion(num, AR) |>
-         SFRPMicroMechanics.eshelby_tensor |>
+    Sf = SFRPMicroMechanics.eshelby_tensor(
+                SFRPMicroMechanics.SpheroidalInclusion(), num, AR) |>
          SFRPMicroMechanics.convert_3333_to_66
 
     vf = 0.2
@@ -441,7 +442,7 @@ end
     ar = 20
     vf = 0.2
     Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
-                    fiber_shape = SpheroidalInclusion, 
+                    fiber_shape = SpheroidalInclusion(), 
                     mandel,
                     )
     # @info "Ceff"
@@ -485,9 +486,9 @@ end
     # N4 = display(SFRPMicroMechanics.hybrid_closure(orientation_tensor))
 
 
-    inclusion = SFRPMicroMechanics.SpheroidalInclusion(nu_m, ar)
+    inclusion = SFRPMicroMechanics.SpheroidalInclusion()
     S = SFRPMicroMechanics.convert_3333_to_66( 
-                        SFRPMicroMechanics.eshelby_tensor(inclusion) ;
+                        SFRPMicroMechanics.eshelby_tensor(inclusion, nu_m, ar) ;
                         mandel = true)
     # @info "S"
     # display(S)
@@ -537,7 +538,7 @@ end
     # end
 
     Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
-                    fiber_shape = SpheroidalInclusion, 
+                    fiber_shape = SpheroidalInclusion(), 
                     mandel,
                     )
     @info "Ceff trans"

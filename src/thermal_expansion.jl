@@ -76,8 +76,8 @@ function ThermalExpansion(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
     
     I6 = SMatrix{6, 6}(LinearAlgebra.I)
 
-    inclusion = SpheroidalInclusion(num, AR)
-    S_eshelby = eshelby_tensor(inclusion) |> convert_3333_to_66
+    inclusion = SpheroidalInclusion()
+    S_eshelby = eshelby_tensor(inclusion, num, AR) |> convert_3333_to_66
     
     # 2. MT Concentration Tensor
     Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))

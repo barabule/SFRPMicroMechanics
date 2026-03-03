@@ -1,49 +1,31 @@
 
 abstract type InclusionGeometry end
 
-struct SphericalInclusion{T<:Real} <:InclusionGeometry
-    nu::T # a1 = a2 = a3
+struct SphericalInclusion <:InclusionGeometry
 end
 
 SphericalInclusion(nu, AR) = SphericalInclusion(nu)
 
-struct SpheroidalInclusion{T<:Real} <:InclusionGeometry #ellypsoidal
-    nu::T
-    ar::T # ar = a1/a2, a2=a3
-
-    function SpheroidalInclusion(nu, ar)
-        args = promote(nu, ar)
-        T = eltype(args)
-        if ar ≈ 1
-            return SphericalInclusion{T}(nu)
-        else
-            return new{T}(args...)
-        end
-    end
+struct SpheroidalInclusion <:InclusionGeometry #ellypsoidal
 end
 
-struct NeedleInclusion{T<:Real} <: InclusionGeometry #thin cylinder with effectively infinite aspect ratio
-    nu::T
-    #ar::T #ar = a1 / a3 -> inf
+struct NeedleInclusion <: InclusionGeometry #thin cylinder with effectively infinite aspect ratio
 end
 
-NeedleInclusion(nu, AR) = NeedleInclusion(nu)
 
-struct DiscInclusion{T<:Real} <: InclusionGeometry # thick disc / cylinder
-    nu::T
-    ar::T # a/a3 < 1
+
+struct DiscInclusion <: InclusionGeometry # thick disc / cylinder
 end
 
-struct ThinDiscInclusion{T<:Real} <: InclusionGeometry #infinitely thin cylinder
-    nu::T # a/a3 -> 0
+struct ThinDiscInclusion <: InclusionGeometry #infinitely thin cylinder
 end
-#convenience 
-ThinDiscInclusion(nu, AR) = ThinDiscInclusion(nu)
 
-function eshelby_tensor(geom::SpheroidalInclusion{T}) where T
-    nu, a = geom.nu, geom.ar
-    if a ≈ 1 #this should never happen
-        return eshelby_tensor(SphericalInclusion(nu))
+
+function eshelby_tensor(geom::SpheroidalInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
+    T = promote_type(T1, T2)
+    a = AR
+    if a ≈ 1 
+        return eshelby_tensor(SphericalInclusion(), nu, AR)
     end
     a2 = a * a
     
@@ -84,8 +66,8 @@ end
 
 
 
-function eshelby_tensor(geom::SphericalInclusion{T}) where T
-    nu = geom.nu
+function eshelby_tensor(geom::SphericalInclusion, nu::T, AR=nothing) where T<:Real
+    
     fac = inv(15 * (1 - nu))
     
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
@@ -104,8 +86,9 @@ function eshelby_tensor(geom::SphericalInclusion{T}) where T
 end
 
 
-function eshelby_tensor(geom::DiscInclusion{T}) where T
-    nu, a = geom.nu, geom.ar
+function eshelby_tensor(geom::DiscInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
+    a = AR
+    T = promote_type(T1, T2)
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
     S[1,1,1,1] = 1 - (1 - 2nu) / (4 * (1 - nu)) * pi * a
@@ -119,8 +102,8 @@ function eshelby_tensor(geom::DiscInclusion{T}) where T
     return SArray{Tuple{3,3,3,3}, T}(S)
 end
 
-function eshelby_tensor(geom::ThinDiscInclusion{T}) where T
-    nu = geom.nu
+function eshelby_tensor(geom::ThinDiscInclusion, nu::T, AR=nothing) where T<:Real
+    
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
     S[1,1,1,1] = 1
     S[1,1,2,2] = S[1,1,3,3] = nu / (1 - nu)
@@ -130,8 +113,8 @@ function eshelby_tensor(geom::ThinDiscInclusion{T}) where T
 end
 
 
-function eshelby_tensor(geom::NeedleInclusion{T}) where T
-    nu = geom.nu
+function eshelby_tensor(geom::NeedleInclusion, nu::T, AR=nothing) where T<:Real
+    
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
     S[1,1,1,1] = (1 - 2nu)/ (4 * (1 - nu))
