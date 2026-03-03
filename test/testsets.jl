@@ -15,12 +15,15 @@
     vf = 0.23345
     AR = 45.3424
     
-    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())]
+    alpha_f = 1.0
+    cte = S.ThermalExpansion(alpha_f)
+    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion(), cte)]
 
-    Cmt = S.mori_tanaka(pm, fibers;mandel = true)
+    Cmt = S.mori_tanaka(pm, fibers;mandel = true, symmetrize = true)
     #
     @info "Cmt"
     display(Cmt)
+
 
     a11, a22 = 0.5674, 0.3333
     a = S.OrientationTensor(a11 ,a22)

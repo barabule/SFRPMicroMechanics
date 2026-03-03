@@ -82,55 +82,93 @@ function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m;
 end
 
 
+
+
+"""
+    FiberPhase - collects fiber properties:
+        - elastic_properties - (isotropic or Orthotropic)
+        - volume fraction of this phase
+        - aspect ratio (fraction of longest to shortest dim)
+        - shape : InclusionGeometry (one of :SphericalInclusion(), SpheroidalInclusion(), NeedleInclusion(),
+                    DiscInclusion(), ThinDiscInclusion()
+
+"""
 struct FiberPhase{T1<:AbstractElasticParameters, T<:Real, S<:InclusionGeometry}   
     elastic_properties::T1
     volume_fraction::T
     aspect_ratio::T
     shape::S
+    thermal_expansion::ThermalExpansion{T}
 end
 
 
 
+
+"""
+    mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
+                    mandel = false,
+                    symmetrize = false)
+
+Inputs:
+    pm - elastic parameters of the matrix - IsotropicElasticParameters(E, nu)
+    fibers - list of fibers [FiberPhase]
+
+    mandel - stiffness matrices are Mandel form
+    symmetrize - if true, symmetrizes the final stiffness matrix
+
+Returns an effective stiffness matrix 6x6
+"""
 function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
                     mandel = false,
-                    # symmetrize = false,
-                    )
+                    symmetrize = false)
 
     Cm = stiffness_matrix_voigt(pm; mandel)
     invCm = inv(Cm)
+    I6 = I(6) # Identity matrix for Voigt/Mandel space
 
-    T  = eltype(Cm)
-    MT = SMatrix{6,6, T}
+    # Calculate Matrix volume fraction
+    vm = 1.0 - sum(f.volume_fraction for f in fibers)
+    
+    # Initialize terms for the summation
+    # We'll accumulate X and Y directly to avoid storing large vectors
+    X = zeros(eltype(Cm), 6, 6)
+    ΣvfTr = zeros(eltype(Cm), 6, 6)
     
     nu_m = pm.nu
 
-    vm = 1- sum(f.volume_fraction for f in fibers) #volfrac matrix
-
-    Trs = Vector{MT}()
-    ΣvfTr = MT(zeros(6,6))
-    Cfs = Vector{MT}()
-    
-    
     for fiber in fibers
         vf = fiber.volume_fraction
         shape = fiber.shape
         AR = fiber.aspect_ratio
-        Sr = convert_3333_to_66(eshelby_tensor(shape, nu_m, AR); mandel)
-        Cf = stiffness_matrix_voigt(fiber.elastic_properties; mandel)
-        push!(Cfs, Cf)
-        Tr = inv(I + Sr * invCm * (Cf - Cm))
-        push!(Trs, Tr)
-        ΣvfTr += vf * Tr
         
+        # 1. Get Eshelby Tensor and transform to Voigt/Mandel
+        S_tensor = eshelby_tensor(shape, nu_m, AR)
+        Sr = convert_3333_to_66(S_tensor; mandel)
+        
+        # 2. Get Fiber Stiffness
+        Cf = stiffness_matrix_voigt(fiber.elastic_properties; mandel)
+        
+        # 3. Calculate the Concentration Tensor (Tr)
+        # Tr = [I + Sr * inv(Cm) * (Cf - Cm)]⁻¹
+        Tr = inv(I6 + Sr * invCm * (Cf - Cm))
+        
+        # 4. Accumulate terms
+        ΣvfTr += vf * Tr
+        X += vf * (Cf - Cm) * Tr
     end
-    Y = (vm * I + ΣvfTr)
     
-    X = sum(fibers[i].volume_fraction * I * (Cfs[i] - Cm) * Trs[i]  for i in eachindex(Trs))
+    # Y = vm*I + Σ(vf_r * Tr)
+    Y = (vm * I6 + ΣvfTr)
+    
+    # Effective Stiffness: C_MT = Cm + X * Y⁻¹
+    C_MT = Cm + X * inv(Y)
 
-    return C_MT = Cm + X * inv(Y)
+    if symmetrize
+        C_MT = 0.5 * (C_MT + C_MT')
+    end
+
+    return C_MT
 end
-
-
 
 
 
@@ -236,56 +274,3 @@ function orientation_averaging_coefficients(C)
 
     return (B1, B2, B3, B4, B5)
 end
-
-using LinearAlgebra
-
-
-#Gemini generated
-# """
-#     orientation_average(Caligned, N2, N4)
-
-# Computes the orientation-averaged stiffness tensor for SFRP.
-# Assumes Caligned is a 3x3x3x3 tensor (or a 6x6 Voigt matrix converted to 4D).
-# N2 is the 2nd order orientation tensor (3x3).
-# N4 is the 4th order orientation tensor (3x3x3x3).
-# """
-# function orientation_average(Caligned, N2, N4)
-#     # Define the 5 invariants for a transversely isotropic material 
-#     # based on the aligned stiffness tensor components.
-#     # These are derived from the terms in Advani & Tucker (1987).
-    
-#     # Extract components from the aligned tensor (assuming 1 is the fiber direction)
-#     b1 = Caligned[1,1,1,1] + Caligned[2,2,2,2] - 2*Caligned[1,1,2,2] - 4*Caligned[1,2,1,2]
-#     b2 = Caligned[1,1,2,2] - Caligned[2,2,3,3]
-#     b3 = Caligned[1,2,1,2] + 0.5 * (Caligned[2,2,3,3] - Caligned[2,2,2,2])
-#     b4 = Caligned[2,2,3,3]
-#     b5 = 0.5 * (Caligned[2,2,2,2] - Caligned[2,2,3,3])
-
-#     C_avg = zeros(3, 3, 3, 3)
-
-#     # The Advani-Tucker orientation averaging formula:
-#     # <C_ijkl> = b1(a_ijkl) + b2(a_ij*d_kl + a_kl*d_ij) + 
-#     #            b3(a_ik*d_jl + a_il*d_jk + a_jl*d_ik + a_jk*d_il) + 
-#     #            b4(d_ij*d_kl) + b5(d_ik*d_jl + d_il*d_jk)
-
-#     δ = I(3) # Kronecker Delta
-
-#     for i in 1:3, j in 1:3, k in 1:3, l in 1:3
-#         # Term 1: 4th order orientation
-#         term1 = b1 * N4[i,j,k,l]
-        
-#         # Term 2: Coupling 2nd order with identity
-#         term2 = b2 * (N2[i,j]*δ[k,l] + N2[k,l]*δ[i,j])
-        
-#         # Term 3: Symmetric coupling
-#         term3 = b3 * (N2[i,k]*δ[j,l] + N2[i,l]*δ[j,k] + N2[j,l]*δ[i,k] + N2[j,k]*δ[i,l])
-        
-#         # Term 4 & 5: Isotropic components
-#         term4 = b4 * (δ[i,j]*δ[k,l])
-#         term5 = b5 * (δ[i,k]*δ[j,l] + δ[i,l]*δ[j,k])
-        
-#         C_avg[i,j,k,l] = term1 + term2 + term3 + term4 + term5
-#     end
-
-#     return C_avg
-# end
