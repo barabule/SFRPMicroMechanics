@@ -1,0 +1,5 @@
+[deps]
+DataInterpolations = "82cc6244-b520-54b8-b5a6-8a565e85f1d0"
+GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+SFRPMicroMechanics = "85b1d378-0dff-4863-a11e-e07702869b2f"
+StaticArrays = "90137ffa-7385-5640-81b9-e52037218182"
