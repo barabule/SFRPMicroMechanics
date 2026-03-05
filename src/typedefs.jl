@@ -118,6 +118,12 @@ function isotropic_stiffness(E, nu; mandel = false)
 end
 
 
+function stiffness_tensor(p::IsotropicElasticParameters{T}; mandel = false) where T
+    
+    return mandel ? frommandel(stiffness_matrix_voigt(p;mandel)) : fromvoigt(stiffness_matrix_voigt(p;mandel))
+end
+
+
 function is_structurally_isotropic(C66::AbstractMatrix)
     if size(C66) != (6,6) 
         return false
@@ -202,6 +208,11 @@ function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mand
                                    0          0             0       0     0    f/G12]
 
     return inv(C)    
+end
+
+function stiffness_tensor(p::OrthotropicElasticParameters;mandel=false)
+
+    return mandel ? frommandel(stiffness_matrix_voigt(p; mandel)) : fromvoigt(stiffness_matrix_voigt(p; mandel))
 end
 
 
