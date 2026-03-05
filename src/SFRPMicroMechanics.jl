@@ -5,6 +5,7 @@ using Statistics
 using GeometryBasics
 using StaticArrays
 using Random
+using Tensors
 
 # Include sub-modules
 include("typedefs.jl")

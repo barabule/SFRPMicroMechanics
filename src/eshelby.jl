@@ -21,7 +21,7 @@ struct ThinDiscInclusion <: InclusionGeometry #infinitely thin cylinder
 end
 
 
-function eshelby_tensor(geom::SpheroidalInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
+function eshelby_tensor(::SpheroidalInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
     T = promote_type(T1, T2)
     a = AR
     if a ≈ 1 
@@ -59,14 +59,14 @@ function eshelby_tensor(geom::SpheroidalInclusion, nu::T1, AR::T2) where {T1<:Re
     
 
 
-    return SArray{Tuple{3,3,3,3}, T}(S)
+    return SymmetricTensor{4,3}(S)
 end
 
 
 
 
 
-function eshelby_tensor(geom::SphericalInclusion, nu::T, AR=nothing) where T<:Real
+function eshelby_tensor(::SphericalInclusion, nu::T, AR=nothing) where T<:Real
     
     fac = inv(15 * (1 - nu))
     
@@ -77,16 +77,11 @@ function eshelby_tensor(geom::SphericalInclusion, nu::T, AR=nothing) where T<:Re
     S[2,3,2,3] = S[2,3,3,2] = S[3,2,2,3] = S[3,2,3,2] = 
     S[1,3,1,3] = S[1,3,3,1] = S[3,1,1,3] = S[3,1,3,1] = (4 - 5nu) *fac
 
-    return SArray{Tuple{3,3,3,3}, T}(S)
-    # return SArray{Tuple{3,3,3,3}}(fac * ((5nu - 1) * (δ(i, j) * δ(k, l)) +
-    #                                      (4 -5nu) * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
-    #                                     )
-    #                             for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
-
+    return SymmetricTensor{4,3}(S)
 end
 
 
-function eshelby_tensor(geom::DiscInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
+function eshelby_tensor(::DiscInclusion, nu::T1, AR::T2) where {T1<:Real, T2<:Real}
     a = AR
     T = promote_type(T1, T2)
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
@@ -99,21 +94,21 @@ function eshelby_tensor(geom::DiscInclusion, nu::T1, AR::T2) where {T1<:Real, T2
     S[2,3,2,3] = (7 - 8nu) / (32 * (1 - nu)) * pi * a
     S[1,2,1,2] = S[1,3,1,3] = 1/2 * (1 - (2 - nu) / (4 * (1 - nu)) *  pi * a)
 
-    return SArray{Tuple{3,3,3,3}, T}(S)
+    return SymmetricTensor{4,3}(S)
 end
 
-function eshelby_tensor(geom::ThinDiscInclusion, nu::T, AR=nothing) where T<:Real
+function eshelby_tensor(::ThinDiscInclusion, nu::T, AR=nothing) where T<:Real
     
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
     S[1,1,1,1] = 1
     S[1,1,2,2] = S[1,1,3,3] = nu / (1 - nu)
     S[1,2,1,2] = S[1,3,1,3] = 1/2
 
-    return SArray{Tuple{3,3,3,3}, T}(S)
+    return SymmetricTensor{4,3}(S)
 end
 
 
-function eshelby_tensor(geom::NeedleInclusion, nu::T, AR=nothing) where T<:Real
+function eshelby_tensor(::NeedleInclusion, nu::T, AR=nothing) where T<:Real
     
     S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
 
@@ -124,5 +119,5 @@ function eshelby_tensor(geom::NeedleInclusion, nu::T, AR=nothing) where T<:Real
     S[2,3,2,3] = (3 - 4nu) / (8 * (1 - nu))
     S[1,2,1,2] = S[1,3,1,3] = 1/4
 
-    return SArray{Tuple{3,3,3,3}, T}(S)
+    return SymmetricTensor{4,3}(S)
 end

@@ -107,12 +107,14 @@ function isotropic_stiffness(E, nu; mandel = false)
     λ = (E * nu) / ((1 + nu) * (1 - 2nu))
     μ = E / (2 * (1 + nu))
     f = mandel ? 2 : 1
-    return @SMatrix [λ+2μ   λ     λ     0   0   0;
-                      λ     λ+2μ  λ     0   0   0;
-                      λ     λ     λ+2μ  0   0   0;
-                      0     0     0     f*μ 0   0;
-                      0     0     0     0   f*μ 0;
-                      0     0     0     0   0   f*μ]
+    # T = eltype((λ, f * μ))
+    return SMatrix{6,6}(
+                                [λ+2μ   λ     λ     0   0     0;
+                                  λ     λ+2μ  λ     0   0     0;
+                                  λ     λ     λ+2μ  0   0     0;
+                                  0     0     0     f*μ 0     0;
+                                  0     0     0     0   f*μ   0;
+                                  0     0     0     0   0     f*μ])
 end
 
 
@@ -124,12 +126,12 @@ function is_structurally_isotropic(C66::AbstractMatrix)
     A = C66[1,1]
     B = C66[1,2]
     C = C66[4,4]
-    M = @SMatrix [A B B 0 0 0;
-                  B A B 0 0 0;
-                  B B A 0 0 0;
-                  0 0 0 C 0 0;
-                  0 0 0 0 C 0;
-                  0 0 0 0 0 C]
+    M = @SMatrix  [A B B 0 0 0;
+                   B A B 0 0 0;
+                   B B A 0 0 0;
+                   0 0 0 C 0 0;
+                   0 0 0 0 C 0;
+                   0 0 0 0 0 C]
 
     return all(M .≈ C66)
 end
@@ -192,14 +194,14 @@ function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mand
     nu13 = nu31 * E1 / E3
     nu23 = nu32 * E2 / E3
     f = mandel ? 1/2 : 1
-    C = @SMatrix [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
-                    -nu12/E1     1/E2        -nu32/E3   0     0     0;
-                    -nu13/E1   -nu23/E2        1/E3     0     0     0;
-                       0          0             0     f/G23   0     0;
-                       0          0             0       0    f/G31  0;
-                       0          0             0       0     0    f/G12]
+    C = @SMatrix             [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
+                                -nu12/E1     1/E2        -nu32/E3   0     0     0;
+                                -nu13/E1   -nu23/E2        1/E3     0     0     0;
+                                   0          0             0     f/G23   0     0;
+                                   0          0             0       0    f/G31  0;
+                                   0          0             0       0     0    f/G12]
 
-    return SMatrix(inv(C))    
+    return inv(C)    
 end
 
 
@@ -280,7 +282,7 @@ end
 
 function decompose_eigenvalue(a::AbstractOrientationTensor)
     if isa(a, OrientationTensor)
-        return (;tensor = a, rotation = SMatrix{3,3}(LinearAlgebra.I))
+        return (;tensor = a, rotation = one(SymmetricTensor{2,3}))
     end
 
     amat = to_matrix(a)
@@ -288,9 +290,10 @@ function decompose_eigenvalue(a::AbstractOrientationTensor)
     # @info "lambda $lambda"
     a11, a22 = lambda[3], lambda[2] 
     
-    R = @SMatrix   [vecs[1,3] vecs[1,2] vecs[1,1];
-                    vecs[2,3] vecs[2,2] vecs[1,2];
-                    vecs[3,3] vecs[2,3] vecs[1,3]]
+    R =         Tensor{2,3}(
+                             [vecs[1,3] vecs[1,2] vecs[1,1];
+                              vecs[2,3] vecs[2,2] vecs[1,2];
+                              vecs[3,3] vecs[2,3] vecs[1,3]])
     return (;tensor = OrientationTensor(a11, a22),
             rotation = R)
     
@@ -317,9 +320,10 @@ end
 
 function to_matrix(a::AbstractOrientationTensor)
     a1, a2, a3, a4, a5,a6  = get_all_coefficients(a)
-    return @SMatrix [a1 a6 a5;
+    return SymmetricTensor{2, 3}(
+                    [a1 a6 a5;
                      a6 a2 a4;
-                     a5 a4 a3]
+                     a5 a4 a3])
 end
 
 function OrientationTensor(afull::FullOrientationTensor)
