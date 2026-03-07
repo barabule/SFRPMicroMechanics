@@ -18,7 +18,7 @@ function compute_orthotropic_properties(matrix_props::IsotropicElasticParameters
                                         aspect_ratio = 10.0,
                                         orientation_tensor=OrientationTensor(0.7, 0.3),
                                         shape = SpheroidalInclusion,
-                                        mandel = false,
+                                        mandel = true,
                                         )
 
     Cm = stiffness_matrix_voigt(matrix_props)
@@ -61,7 +61,7 @@ end
 
 function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m; 
                     fiber_shape = SpheroidalInclusion()::InclusionGeometry, 
-                    mandel = false,
+                    mandel = true,
                     )
 
     T = eltype(Cm)
@@ -93,12 +93,21 @@ end
                     DiscInclusion(), ThinDiscInclusion()
 
 """
-Base.@kwdef struct FiberPhase{T1<:AbstractElasticParameters, T<:Real, S<:InclusionGeometry}   
-    elastic_properties::T1
+Base.@kwdef struct FiberPhase{EP<:AbstractElasticParameters, T<:Real, IG<:InclusionGeometry}   
+    elastic_properties::EP
     volume_fraction::T
     aspect_ratio::T
-    shape::S
-    thermal_expansion::Union{Nothing, ThermalExpansion{T}}=nothing
+    shape::IG
+
+    function FiberPhase(ep, vf, ar, shap)
+        VF, AR = promote(vf, ar)
+        T = typeof(VF)
+        EP = typeof(ep)
+        IG = typeof(shap)
+        @assert IG<:InclusionGeometry
+        @assert EP<:AbstractElasticParameters
+        return new{EP, T, IG}(ep, VF, AR, shap)
+    end
 end
 
 
@@ -119,7 +128,7 @@ Inputs:
 Returns an effective stiffness matrix 6x6
 """
 function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
-                    mandel = false,
+                    mandel = true,
                     symmetrize = false)
 
     Cm = stiffness_matrix_voigt(pm; mandel)
@@ -169,6 +178,19 @@ function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:Fi
 
     return C_MT
 end
+
+function mori_tanaka(pm::IsotropicElasticParameters, pf::AbstractElasticParameters, vf::Real, ar::Real;
+                    shape = SpheroidalInclusion(), 
+                    mandel = true,
+                    symmetrize = false)
+
+    fiber_phase = FiberPhase(pf, vf, ar, shape)
+
+    return mori_tanaka(pm, [fiber_phase]; mandel, symmetrize)
+end
+
+
+
 
 function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
                     volume_fraction, aspect_ratio)
@@ -240,7 +262,7 @@ end
 # Advani-Tucker Orientation Averaging
 function orientation_average(C_aligned, a::AbstractOrientationTensor; 
                             closure_type = HybridClosure::Type{<:AbstractClosure}, 
-                            mandel = false,
+                            mandel = true,
                             )
     
     (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned; mandel) #this works
@@ -266,7 +288,7 @@ function orientation_average(C_aligned, a::AbstractOrientationTensor;
 end
 
 
-function orientation_averaging_coefficients(C; mandel = false)
+function orientation_averaging_coefficients(C; mandel = true)
     tens = convert_66_to_3333(C; mandel)
 
     B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]
@@ -285,7 +307,7 @@ end
 
 function orientation_average(tens::SymmetricTensor{4, 3}, a::AbstractOrientationTensor; 
                             closure_type = HybridClosure::Type{<:AbstractClosure},
-                            mandel = false)
+                            mandel = true)
 
     
     B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]

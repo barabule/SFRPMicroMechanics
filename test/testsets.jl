@@ -17,7 +17,7 @@
     
     alpha_f = 1.0
     cte = S.ThermalExpansion(alpha_f)
-    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion(), cte)]
+    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())]
 
     Cmt = S.mori_tanaka(pm, fibers;mandel = true, symmetrize = true)
     #
@@ -64,10 +64,11 @@ end
 
 @testset "Basic Stiffness Conversion" verbose = true begin
     E, nu = 10.0, 0.3
+    mandel = true
     p =SFRPMicroMechanics.IsotropicElasticParameters(E, nu)
-    C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    C = SFRPMicroMechanics.stiffness_matrix_voigt(p;mandel)
     @test SFRPMicroMechanics.is_isotropic(C) #dooh
-    ct = SFRPMicroMechanics.extract_orthotropic_constants(C)
+    ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
     @test ct.E1 ≈ ct.E2 ≈ ct.E3 ≈ E
     @test ct.nu21  ≈ ct.nu32 ≈ ct.nu31 ≈ nu
     @test ct.G12 ≈ ct.G23 ≈ ct.G31 ≈ E/ (2 * (1 + nu))
@@ -80,9 +81,9 @@ end
     G23 = 6.4
     G31 = 4.5
     p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1, E2, E3, nu21, nu32, nu31, G12, G23, G31) 
-    C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    C = SFRPMicroMechanics.stiffness_matrix_voigt(p; mandel)
 
-    ct = SFRPMicroMechanics.extract_orthotropic_constants(C)
+    ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
 
     @test ct.E1 ≈ E1
     @test ct.E2 ≈ E2
@@ -102,14 +103,22 @@ end
 @testset "No Fibers" verbose = true begin
     # Test 1: Zero fibers
     #vf = 0
-    Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.0, 15.0, 0.7, 0.25
-    C = SFRPMicroMechanics.compute_orthotropic_properties(Em, num, Ef, nuf, vf, ar, a11, a22)
-    props = SFRPMicroMechanics.extract_orthotropic_constants(C)
-    # @info props
-    @test isapprox(props.E1, Em, atol=1e-2)
-    @test isapprox(props.nu21, num, atol=1e-4)
-    @test isapprox(props.E2, Em, atol=1e-1)
-    @test isapprox(props.G12, Em / (2*(1+num)), atol=1e-1)
+    S = SFRPMicroMechanics
+    vf = 0
+    Em, num, Ef, nuf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 15.0, 0.7, 0.25
+
+    a2 = S.OrientationTensor(a11, a22)
+    pm = S.IsotropicElasticParameters(Em, num)
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+
+    Cm = S.stiffness_matrix_voigt(pm;mandel = true)
+    Cmt = S.mori_tanaka(pm, pf, vf, ar)
+    
+    C = S.orientation_average(Cmt, a2)
+
+    @test all(isapprox.(Cmt, Cm))
+    @test all(isapprox.(C, Cm))
+    
 end
 
 @testset "Eshelby Tensor" verbose = true begin
@@ -140,7 +149,7 @@ end
 
     shape = S.SpheroidalInclusion()
     a = S.OrientationTensor(a11, a22)
-    fibers = [S.FiberPhase(pf, vf, ar, shape, nothing)]
+    fibers = [S.FiberPhase(pf, vf, ar, shape)]
 
     mandel = true
     Ceff = S.mori_tanaka(pm, fibers;mandel)
@@ -225,11 +234,12 @@ end
 end
     
 @testset "Spherical Inclusion Limit" verbose = true begin
+    # @info "Spherical Inclusion Limit"
     # Aspect Ratio = 1.0 means fibers are spheres. 
     # Spheres are isotropic; E1 should equal E2 even with aligned a11.
     S = SFRPMicroMechanics
-    ar = 1.0
-    vf = 0.15
+    ar = 1
+    vf = 0.3
     Em, num, Ef, nuf = 2000, 0.3, 70e3, 0.22
     a11 = 0.7
     a22 = 0.25
@@ -241,14 +251,46 @@ end
     pf = S.IsotropicElasticParameters(Ef, nuf)
     Cf = S.stiffness_matrix_voigt(pf;mandel)
     
-    Cmt = S.mori_tanaka(Cm, Cf, vf, ar, num)
+    # Cmt = S.mori_tanaka(Cm, Cf, vf, ar, num)
+    Cmt = S.mori_tanaka(pm, pf, vf, ar; mandel)
     # @info "Sphere Cmt"
     # display(Cmt)
     @test S.is_structurally_isotropic(Cmt) #this is very stringent
     
+
+    phase = S.FiberPhase(pf, vf, ar, S.SpheroidalInclusion())
+    Cmt2 = S.mori_tanaka(pm, [phase];mandel)
+    # @info "Cmt2"
+    # display(Cmt2)
+
+    @test all(Cmt .≈ Cmt2)
+    #from homopy
+    a, b, c = 4597.54348806, 1780.17562439, 2817.36786368
+    Cmt_ref = [a b b 0 0 0;
+               b a b 0 0 0;
+               b b a 0 0 0;
+               0 0 0 c 0 0;
+               0 0 0 0 c 0;
+               0 0 0 0 0 c]
+
+    @test all(isapprox.(Cmt2, Cmt_ref, atol = 1e-4))
+
+
+    Ssph = S.convert_3333_to_66(S.eshelby_tensor(S.SpheroidalInclusion(), num, ar);mandel=true)
+    # @info "S spherical"
+    # display(Ssph)
+    
+    a,b,c = 0.52380952, 0.04761905, 0.47619048 #from homopy
+    S_ref = [a b b 0 0 0;
+               b a b 0 0 0;
+               b b a 0 0 0;
+               0 0 0 c 0 0;
+               0 0 0 0 c 0;
+               0 0 0 0 0 c]
+    @test all(isapprox.(Ssph, S_ref, atol = 1e-5))
     # @info "Cmt 3333"
-    display(S.convert_66_to_3333(Cmt;mandel))
-    bs = S.orientation_averaging_coefficients(Cmt)
+    # display(S.convert_66_to_3333(Cmt;mandel))
+    bs = S.orientation_averaging_coefficients(Cmt; mandel)
     # @info "Bs"
     # display(bs)
 
@@ -259,12 +301,14 @@ end
     @test elprops.G12 ≈ elprops.G23 ≈ elprops.G31
 
     a = S.OrientationTensor(a11, a22)
-    Cavg = S.orientation_average(Cmt, a)
+    Cavg = S.orientation_average(Cmt, a; mandel)
+    @test all(isapprox.(Cavg, Cmt)) 
     # @info "Sphere Cavg"
-    # display(Cavg) #almost isotropic...
+    # display(Cavg) works
     elprops = S.extract_orthotropic_constants(Cavg)
-    # display(elprops)
-    @test S.is_isotropic(Cavg)
+    display(elprops)
+    # @test S.is_isotropic(Cavg)
+    @test S.is_structurally_isotropic(Cavg)
 end
     
 @testset "Unidirectional (UD) Alignment" verbose = true begin
@@ -285,13 +329,24 @@ end
     
 @testset "3D Random Isotropy" verbose = true begin
     # a11 = a22 = a33 = 1/3 is a perfectly random 3D distribution.
+    S = SFRPMicroMechanics
     a11 = a22  = 1/3
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 10.0
     vf = 0.2
-    C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
-    @test SFRPMicroMechanics.is_isotropic(C)
-    
+    pm = S.IsotropicElasticParameters(Em, num)
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+
+    a2 = S.OrientationTensor(a11, a22)
+    Cmt = S.mori_tanaka(pm, pf, vf, aspect_ratio)
+    Cavg = S.orientation_average(Cmt, a2)
+    @info "Cavg"
+    display(Cavg)
+    # C = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
+    @test SFRPMicroMechanics.is_structurally_isotropic(Cavg)
+    ep = S.extract_orthotropic_constants(Cavg; mandel = true)
+    E, nu, G = ep.E1, ep.nu21, ep.G12
+    @test G ≈ E/(2(1+nu))
 end
 
 @testset "Bounds Check (Rule of Mixtures)" verbose = true begin
@@ -310,9 +365,9 @@ end
     shapes  = [S.NeedleInclusion(), S.SpheroidalInclusion()]
     for shape in shapes
         @info "$shape"
-        fibers = [S.FiberPhase(pf, vf, aspect_ratio, shape, nothing)]
+        fibers = [S.FiberPhase(pf, vf, aspect_ratio, shape)]
         Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize=true)
-        elprops = S.extract_orthotropic_constants(Cmt)
+        elprops = S.extract_orthotropic_constants(Cmt; mandel)
         
         ROM_E1 = vf * Ef + (1 - vf) * Em #rule of mixtures 
         # @info "E1 computed = $(elprops.E1)"
@@ -320,7 +375,7 @@ end
         @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
 
         Cavg = S.orientation_average(Cmt, S.OrientationTensor(a11, a22);mandel)
-        elprops = S.extract_orthotropic_constants(Cavg)
+        elprops = S.extract_orthotropic_constants(Cavg;mandel)
         
         
         # @info "E1 computed avg = $(elprops.E1)"
@@ -373,7 +428,7 @@ end
         # @info "E2d = $E2d,  E3d = $E3d"
     end
 
-    C = SFRPMicroMechanics.stiffness_matrix_voigt(p)
+    C = SFRPMicroMechanics.stiffness_matrix_voigt(p; mandel=true)
     theta = rand()*360
     @test SFRPMicroMechanics.apparent_modulus(p, theta) ≈ SFRPMicroMechanics.apparent_modulus(C, theta)
 
@@ -395,7 +450,7 @@ end
     (Cht, constants) = SFRPMicroMechanics.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
     
     # display(constants)
-    B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht)
+    B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht; mandel = false)
     Bref = (4680.46e-3, -18.18e-3, 16.97e-3, 2006.85e-3, 637.66e-3)
 
     for i in 1:5
@@ -522,6 +577,7 @@ end
 
 @testset "Comparison to homopy" verbose = true begin
     #isotropic fibers
+    S = SFRPMicroMechanics
     mandel = true
     pf = SFRPMicroMechanics.IsotropicElasticParameters(242, 0.1)
     Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf; mandel)
@@ -530,10 +586,11 @@ end
     Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm; mandel)
     ar = 20
     vf = 0.2
-    Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
-                    fiber_shape = SpheroidalInclusion(), 
-                    mandel,
-                    )
+    # Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
+    #                 fiber_shape = SpheroidalInclusion(), 
+    #                 mandel,
+    #                 )
+    Ceff = S.mori_tanaka(pm, pf, vf, ar)
     # @info "Ceff"
     # display(Ceff)
     Ceff_homopy = [22.56165115 2.12961706 2.12961706 0 0 0;
@@ -551,8 +608,8 @@ end
 
     a11, a22 = 0.7, 0.25
 
-    orientation_tensor =SFRPMicroMechanics.OrientationTensor(a11, a22) 
-    Cavg = SFRPMicroMechanics.orientation_average(Ceff, orientation_tensor; mandel)
+    orientation_tensor =S.OrientationTensor(a11, a22) 
+    Cavg = S.orientation_average(Ceff, orientation_tensor; mandel)
 
     @info "Cavg"
     display(Cavg)
@@ -570,13 +627,13 @@ end
     #     @test ca ≈ ca_hom
     # end
 
-    #test the hybrid closure element by element // also wrong
+    #test the hybrid closure element by element // works
     # @info "N4 hybrid"
     # N4 = display(SFRPMicroMechanics.hybrid_closure(orientation_tensor))
 
 
     inclusion = SFRPMicroMechanics.SpheroidalInclusion()
-    S = SFRPMicroMechanics.convert_3333_to_66( 
+    S_eff = SFRPMicroMechanics.convert_3333_to_66( 
                         SFRPMicroMechanics.eshelby_tensor(inclusion, nu_m, ar) ;
                         mandel = true)
     # @info "S"
@@ -589,10 +646,8 @@ end
                     0              0              0               0           0       4.9480228e-1]
     # @info "S_homopy"
     # display(S_homopy)
-    @test all(isapprox.(S, S_homopy, atol=1e-4))
-    # for (s, s_hom) in zip(S, S_homopy)
-    #     @test s ≈ s_hom atol=1e-4
-    # end
+    @test all(isapprox.(S_eff, S_homopy, atol=1e-4))
+    
 
     #transverse isotropic fibers
 
@@ -601,9 +656,12 @@ end
     G12_c = 10.0
     nu21_c = nu31_c = 0.03
     nu23_c = 0.39
+    vf = 0.3
 
     G23_c = E2_c / (2 * (1 +nu23_c))
     G13_c = G12_c
+
+    pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, 0.35)
 
     pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
                                                         E2 = E2_c, E3 = E3_c,
@@ -626,19 +684,20 @@ end
     #     @test c ≈ c_hom
     # end
 
-    Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
-                    fiber_shape = SpheroidalInclusion(), 
-                    mandel,
-                    )
+    # Ceff = SFRPMicroMechanics.mori_tanaka(Cm, Cf, vf, ar, nu_m; 
+    #                 fiber_shape = SpheroidalInclusion(), 
+    #                 mandel,symmetrize =true
+    #                 )
+    Ceff = S.mori_tanaka(pm, pf, vf, ar)
     @info "Ceff trans"
     display(Ceff)
 
-    Ceff_homopy = [29.92384992  2.21785213    2.21785213    0     0    0 ;
-                    2.21785213  4.54152923    2.32401817    0     0    0 ;
-                    2.21785213  2.32401817    4.54152923    0     0    0 ;
-                    0           0             0         2.21751107 0   0;
-                    0           0             0             0  2.30146776  0;
-                    0           0             0             0      0   2.30146776]
+    Ceff_homopy = [36.44938137  2.34300859    2.34300859    0     0    0 ;
+                    2.34300859  4.91037016    2.34300859    0     0    0 ;
+                    2.34300859  2.34300859    4.91037016    0     0    0 ;
+                    0           0             0         2.42207018 0   0;
+                    0           0             0             0  2.52257841  0;
+                    0           0             0             0      0   2.52257841]
 
     @info "Ceff_homopy trans"
     display(Ceff_homopy)
