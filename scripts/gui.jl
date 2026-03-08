@@ -20,9 +20,9 @@ function start_gui(;
     fig.layout[2,1] = BOTTOM_BAR
 
 
-    closure_menu = Menu(fig, options=[("Linear", S.LinearClosure()), 
-                                      ("Quadratic", S.QuadraticClosure()),
-                                      ("Hybrid", S.HybridClosure())], 
+    closure_menu = Menu(fig, options=[("Linear", S.LinearClosure), 
+                                      ("Quadratic", S.QuadraticClosure),
+                                      ("Hybrid", S.HybridClosure)], 
                                         default = "Hybrid")
     matrix_sliders = SliderGrid(fig,
             (label = "Eₘ [GPa]", range = (0.5:0.1:5.0), startvalue = 3.0),
@@ -46,7 +46,12 @@ function start_gui(;
         tellwidth = false,
     )
 
-    
+    matrix_observables = [s.value for s in matrix_sliders.sliders]
+    matrix_properties = @lift S.IsotropicElasticParameters($(matrix_observables[1]), $(matrix_observables[2]))
+    # @info "matrix", matrix_properties[]
+    orientation_tensor_observables = [s.value for s in orientation_sliders.sliders]
+    orientation_tensor = @lift S.OrientationTensor($(orientation_tensor_observables[1]), 
+                                                    $(orientation_tensor_observables[2]))
 
     fiber_isotropic_sliders = SliderGrid(fig,
             (label = "E", range = (1.0:0.5:500.0), format = "{:.1f}", startvalue = 70.0),
@@ -56,6 +61,9 @@ function start_gui(;
             width = BAR_WIDTH/2,
             
             )
+
+    fiber_iso_observables = [s.value for s in fiber_isotropic_sliders.sliders]
+
 
     fiber_trans_sliders = SliderGrid(fig,
             (label = "E₁ [GPa]", range = (1.0:0.5:500.0), format = "{:.1f}", startvalue = 230.0),
@@ -68,6 +76,7 @@ function start_gui(;
             width = BAR_WIDTH/2,
             )
 
+    fiber_trans_observables = [s.value for s in fiber_trans_sliders.sliders]
 
     inclusion_menu = Menu(fig, options = [("Spheroidal", S.SpheroidalInclusion()),
                                           ("Sphere", S.SphericalInclusion()),
@@ -107,71 +116,116 @@ function start_gui(;
 
     # sliderobservables = [s.value for s in sg.sliders]
     
-    # angles = LinRange(0, 360, N)
-    # phi = deg2rad.(angles)
-    # Emods = Observable(zeros(size(angles)))
-    # on(sliderobservables[7]) do a11
+    vol_frac = Observable(0.1)
+    aspect_ratio = Observable(10.0)
+
+
+
+    angles = LinRange(0, 360, N)
+    phi = deg2rad.(angles)
+    
+
+    fiber_elastic_props = Observable{S.AbstractElasticParameters}(S.IsotropicElasticParameters(70.0, 0.22))
+
+    onany(fiber_iso_observables...) do vals...
+        Ef = vals[1]
+        nuf = vals[2]
+        vf = vals[3]
+        ar = vals[4]
+        vol_frac[] = vf
+        aspect_ratio[] = ar
+        fiber_elastic_props[] = S.IsotropicElasticParameters(Ef, nuf)
+    end
+
+    onany(fiber_trans_observables...) do vals...
+        E1 = vals[1]
+        E2 = vals[2]
+        nu21 = vals[3]
+        nu23 = vals[4]
+        G12 = vals[5]
+        vf = vals[6]
+        ar = vals[7]
+        G23 = E2/ (2*(1+nu23))
+        G31 = G12
+        nu31 = nu21
+        fiber_elastic_props[] = S.OrthotropicElasticParameters(;E1, E2, E3=E2,nu21, nu23, nu31, G12, G23, G31) 
+        vol_frac[] = vf
+        aspect_ratio[] = ar
+    end
+
+    on(orientation_sliders.sliders[1].value) do a11
          
-    #     a22_max = min(1 - a11, a11)
-    #     a22_min = round((1-a11) / 2 + 0.01; digits= 2)
-    #     # a22_min = round(max(1-a11, a11)/2; digits= 2)
-    #     a22 = sliderobservables[8][]
-    #     a22 = clamp(a22_min, a22_max, a22)
-         
-    #     sg.sliders[8].range = a22_min:0.01:a22_max
-    #     sliderobservables[8][] = set_close_to!(sg.sliders[2], a22)
-    # end
+        a22_max = min(1 - a11, a11)
+        a22_min = round((1-a11) / 2 + 0.01; digits= 2)
+        # a22_min = round(max(1-a11, a11)/2; digits= 2)
+        # a22 = orientation_tensor_observables[2][]
+        # a22 = clamp(a22_min, a22_max, a22)
+        a22 = 1/2 * (a22_min + a22_max)
+        a22_slider = orientation_sliders.sliders[2]
+        a22_slider.range = a22_min:0.01:a22_max
+        orientation_tensor_observables[2][] = set_close_to!(a22_slider, a22)
+    end
 
 
-    # onany(sliderobservables...) do slvals...
-    #     Em = slvals[1]
-    #     nu_m = slvals[2]
-    #     Ef = slvals[3]
-    #     nu_f = slvals[4]
-    #     vf = slvals[5]
-    #     AR = slvals[6]
-    #     a11 = slvals[7]
-    #     a22 =slvals[8]
-    #     Emods[] = compute_emod(angles, Em, nu_m, Ef, nu_f, vf, AR, a11, a22;mandel)
-    # end
+    
+    Emods = @lift compute_emod($matrix_properties, 
+                               $fiber_elastic_props, 
+                               $vol_frac,
+                               $aspect_ratio,
+                               $orientation_tensor,
+                               $(inclusion_menu.selection),
+                               $(closure_menu.selection),
+                               angles;
+                               mandel = true,
+                               symmetrize = true,
+                               )
+    lines!(ax, phi, Emods, color = :black)
 
-    # lines!(ax, phi, Emods, color = :black)
+
+    set_close_to!(matrix_sliders.sliders[1], 3.0)
 
     fig
 end
 
 
-function slider_line(parent, label, range, startvalue)
-    sl = Slider(parent, range, startvalue)
-    GL = GridLayout()
-    GL[1,1] = hgrid!(Label(parent, "$label", halign=:left), 
-                    sl, 
-                    Label(parent, lift(v-> "$(round(v, digits=2))", sl.value)))
-    colsize!(GL, 2, Relative(0.6))
-    return (;slider = sl, gridlayout = GL)
-end
 
 
-function compute_emod(phi, Em, nu_m, Ef, nu_f, vf, AR, A11, A22; 
-                    mandel = true,
-                    )
-    pm = S.IsotropicElasticParameters(Em, nu_m)
-    pf = S.IsotropicElasticParameters(Ef, nu_f)
-    
-    # Cm = S.stiffness_matrix_voigt(pm; mandel)
-    # Cf = S.stiffness_matrix_voigt(pf; mandel)
 
-    fibers = [S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion(), nothing)]
 
-    Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize = true)
-    
-    a2= S.OrientationTensor(A11, A22)
-    CT = S.HybridClosure
-    Cavg = S.orientation_average(Cmt, a2; closure_type = CT)
+function compute_emod(pm::S.IsotropicElasticParameters, 
+                      pf::S.AbstractElasticParameters, 
+                      volume_fraction, 
+                      aspect_ratio, 
+                      a2::S.OrientationTensor,
+                      inclusion::S.InclusionGeometry,
+                      closure::Type{<:S.AbstractClosure},
+                      angles::AbstractVector{<:Real};
+                      mandel = true,
+                      symmetrize = true)
+
+    # @info "pm", pm
+    # @info "pf", pf
+    # @info "vf", volume_fraction
+    # @info "ar", aspect_ratio
+    # @info "a2", a2
+    # @info "inclusion", inclusion
+    # @info "closure", closure
+
+    fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
+
+    Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize)
+    # @info "Cmt"
+    # display(Cmt)
+    # a2= S.OrientationTensor(A11, A22)
+    # CT = S.HybridClosure
+    Cavg = S.orientation_average(Cmt, a2; closure_type = closure)
+    # @info "Cavg" 
+    # display(Cavg)
 
     pavg = S.extract_orthotropic_constants(Cavg)
-    return [S.apparent_modulus(pavg, ang) for ang in phi]
-end
+    # @info "Extracted props", pavg
+    return [S.apparent_modulus(pavg, ang) for ang in angles]
 
+end
 
 end #module

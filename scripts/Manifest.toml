@@ -1218,8 +1218,8 @@ uuid = "5eaf0fd0-dfba-4ccb-bf02-d820a40db705"
 version = "0.2.1"
 
 [[deps.SFRPMicroMechanics]]
-deps = ["GLMakie", "GeometryBasics", "LinearAlgebra", "Random", "StaticArrays", "Statistics"]
-git-tree-sha1 = "8660cddcf326e53cd5be9a81da3b8bf6261def8c"
+deps = ["GLMakie", "GeometryBasics", "LinearAlgebra", "Random", "StaticArrays", "Statistics", "Tensors"]
+git-tree-sha1 = "73cf4c2593047ea8f9164adee3cfa8fc0726304d"
 repo-rev = "main"
 repo-url = ".."
 uuid = "85b1d378-0dff-4863-a11e-e07702869b2f"
@@ -1447,6 +1447,12 @@ deps = ["LinearAlgebra"]
 git-tree-sha1 = "1feb45f88d133a655e001435632f019a9a1bcdb6"
 uuid = "62fd8b95-f654-4bbd-a8a5-9c27f68ccd50"
 version = "0.1.1"
+
+[[deps.Tensors]]
+deps = ["ForwardDiff", "LinearAlgebra", "PrecompileTools", "SIMD", "StaticArrays", "Statistics"]
+git-tree-sha1 = "399ec4c46786c47380121f8a6497c65b89f0573f"
+uuid = "48a634ad-e948-5137-8d70-aa71f2a747f4"
+version = "1.16.2"
 
 [[deps.TiffImages]]
 deps = ["ColorTypes", "DataStructures", "DocStringExtensions", "FileIO", "FixedPointNumbers", "IndirectArrays", "Inflate", "Mmap", "OffsetArrays", "PkgVersion", "PrecompileTools", "ProgressMeter", "SIMD", "UUIDs"]
