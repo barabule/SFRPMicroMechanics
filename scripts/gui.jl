@@ -218,11 +218,11 @@ function compute_emod(pm::S.IsotropicElasticParameters,
     # display(Cmt)
     # a2= S.OrientationTensor(A11, A22)
     # CT = S.HybridClosure
-    Cavg = S.orientation_average(Cmt, a2; closure_type = closure)
+    Cavg = S.orientation_average(Cmt, a2; closure_type = closure, mandel)
     # @info "Cavg" 
     # display(Cavg)
 
-    pavg = S.extract_orthotropic_constants(Cavg)
+    pavg = S.extract_orthotropic_constants(Cavg; mandel)
     # @info "Extracted props", pavg
     return [S.apparent_modulus(pavg, ang) for ang in angles]
 

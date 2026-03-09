@@ -67,7 +67,8 @@ end
     mandel = true
     p =SFRPMicroMechanics.IsotropicElasticParameters(E, nu)
     C = SFRPMicroMechanics.stiffness_matrix_voigt(p;mandel)
-    @test SFRPMicroMechanics.is_isotropic(C) #dooh
+    @test SFRPMicroMechanics.is_structurally_isotropic(C) #dooh
+
     ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
     @test ct.E1 ≈ ct.E2 ≈ ct.E3 ≈ E
     @test ct.nu21  ≈ ct.nu32 ≈ ct.nu31 ≈ nu
@@ -183,19 +184,20 @@ end
                                                         nu21 = 0.05,
                                                         nu32 = 0.2,
                                                         nu31 = 0.1)
-    Cm = SFRPMicroMechanics.stiffness_matrix_voigt(p)
-    pex = SFRPMicroMechanics.extract_orthotropic_constants(Cm)
+    for mandel in (true, false)
+        Cm = SFRPMicroMechanics.stiffness_matrix_voigt(p; mandel)
+        pex = SFRPMicroMechanics.extract_orthotropic_constants(Cm; mandel)
 
-    @test p.E1 ≈ pex.E1
-    @test p.E2 ≈ pex.E2
-    @test p.E3 ≈ pex.E3
-    @test p.G12 ≈ pex.G12
-    @test p.G23 ≈ pex.G23
-    @test p.G31 ≈ pex.G31
-    @test p.nu21 ≈ pex.nu21
-    @test p.nu31 ≈ pex.nu31
-    @test p.nu32 ≈ pex.nu32
-
+        @test p.E1 ≈ pex.E1
+        @test p.E2 ≈ pex.E2
+        @test p.E3 ≈ pex.E3
+        @test p.G12 ≈ pex.G12
+        @test p.G23 ≈ pex.G23
+        @test p.G31 ≈ pex.G31
+        @test p.nu21 ≈ pex.nu21
+        @test p.nu31 ≈ pex.nu31
+        @test p.nu32 ≈ pex.nu32
+    end
 end
 
 @testset "Orientation Averaging" verbose = true begin
@@ -590,7 +592,7 @@ end
     #                 fiber_shape = SpheroidalInclusion(), 
     #                 mandel,
     #                 )
-    Ceff = S.mori_tanaka(pm, pf, vf, ar)
+    Ceff = S.mori_tanaka(pm, pf, vf, ar;mandel)
     # @info "Ceff"
     # display(Ceff)
     Ceff_homopy = [22.56165115 2.12961706 2.12961706 0 0 0;
@@ -618,7 +620,7 @@ end
                     5.12826607  5.80792549    2.42678122    0       0         0;
                     3.00257743  2.42678122    4.12680095    0       0         0;
                     0           0             0        2.25192461   0         0;
-                    0           0             0             0   1.90998018    0;
+                    0           0             0             0   2.90998018    0;
                     0           0             0             0       0     3.20117434]
     @info "Cavg homopy"
     display(Cavg_homopy)
@@ -657,7 +659,7 @@ end
     nu21_c = nu31_c = 0.03
     nu23_c = 0.39
     vf = 0.3
-
+    ar = 22.0
     G23_c = E2_c / (2 * (1 +nu23_c))
     G13_c = G12_c
 
@@ -688,24 +690,43 @@ end
     #                 fiber_shape = SpheroidalInclusion(), 
     #                 mandel,symmetrize =true
     #                 )
-    Ceff = S.mori_tanaka(pm, pf, vf, ar)
-    @info "Ceff trans"
-    display(Ceff)
+    Ceff = S.mori_tanaka(pm, pf, vf, ar;mandel)
+    # @info "Ceff trans"
+    # display(Ceff)
 
     Ceff_homopy = [36.44938137  2.34300859    2.34300859    0     0    0 ;
-                    2.34300859  4.91037016    2.34300859    0     0    0 ;
-                    2.34300859  2.34300859    4.91037016    0     0    0 ;
+                    2.34300859  4.91037016    2.48829998    0     0    0 ;
+                    2.34300859  2.48829998    4.91037016    0     0    0 ;
                     0           0             0         2.42207018 0   0;
                     0           0             0             0  2.52257841  0;
                     0           0             0             0      0   2.52257841]
 
-    @info "Ceff_homopy trans"
-    display(Ceff_homopy)
+    # @info "Ceff_homopy trans"
+    # display(Ceff_homopy)
     @test all(Ceff .≈ Ceff_homopy)
     # for (c, c_hom) in zip(Ceff, Ceff_homopy)
     #     @test c ≈ c_hom
     # end
 
+
+    a11, a22 = 0.7, 0.25
+    orientation_tensor =S.OrientationTensor(a11, a22) 
+
+    C_avg_trans = S.orientation_average(Ceff, orientation_tensor; mandel)
+    
+    @info "C_avg_trans"
+    display(C_avg_trans)
+
+    a, b, c, d, e, f, g, h, j = 21.28753957, 7.39504232, 4.60318504, 2.83807254, 3.84243603, 7.40101738, 2.69510888, 3.64095994, 4.04242938 
+    C_avg_trans_homopy =  [a f e 0 0 0;
+                           f b d 0 0 0;
+                           e d c 0 0 0;
+                           0 0 0 g 0 0;
+                           0 0 0 0 h 0;
+                           0 0 0 0 0 j]
+    @info "C_avg_trans_homopy"
+    display(C_avg_trans_homopy)
+    @test all(isapprox.(C_avg_trans, C_avg_trans_homopy, atol=1e-4))
 
 end
 
