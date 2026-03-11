@@ -152,6 +152,58 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
 
 end
 
+
+function ThermalExpansion(pm::IsotropicElasticParameters, 
+                          pf::OrthotropicElasticParameters, # Fiber is Trans. Iso.
+                          cte_m::ThermalExpansion, 
+                          cte_f::ThermalExpansion, 
+                          vf::Real, 
+                          AR::Real, 
+                          a::OrientationTensor,
+                          shape::InclusionGeometry;
+                          mandel = true)
+    
+    # 1. Setup Phase Properties
+    Cm = stiffness_matrix_voigt(pm;mandel)
+    Cf = stiffness_matrix_voigt(pf;mandel) 
+    
+    # 2. Micromechanics (Mori-Tanaka)
+    I6 = SMatrix{6, 6}(LinearAlgebra.I)
+    S  = eshelby_tensor(shape, pm.nu, AR) |> convert_3333_to_66
+    
+    # Concentration tensor (Dilute -> Mori-Tanaka)
+    A_dil = inv(I6 + S * (inv(Cm) * (Cf - Cm)))
+    A_mt  = A_dil * inv((1 - vf) * I6 + vf * A_dil)
+    
+    # Aligned Effective Stiffness
+    C_aligned = Cm + vf * (Cf - Cm) * A_mt
+
+    # 3. Levin's Relation for Aligned CTE Vector
+    # α_aligned = α_m + vf * [inv(C_aligned - Cm) * (Cf - Cm) * A_mt] * (α_f - α_m)
+    am_vec = to_voigt(cte_m)
+    af_vec = to_voigt(cte_f)
+    
+    term = inv(C_aligned - Cm) * (Cf - Cm) * A_mt * (af_vec - am_vec)
+    alpha_aligned = am_vec + vf * term
+
+    # 4. Orientation Averaging (2nd Order Tensor)
+    # Since fiber is Transversely Isotropic: α_long = α[1], α_trans = α[2] = α[3]
+    α_l, α_t = alpha_aligned[1], alpha_aligned[2]
+    
+    a11, a22 = a.a11, a.a22
+    a33 = 1.0 - a11 - a22
+    
+    # Map back to the global coordinate system using orientation components
+    return ThermalExpansion(
+        (α_l - α_t) * a11 + α_t,
+        (α_l - α_t) * a22 + α_t,
+        (α_l - α_t) * a33 + α_t
+    )
+end
+
+
+
+
 function effective_thermal_expansion(pm::IsotropicElasticParameters, 
                                      fibers::AbstractVector{<:FiberPhase}, 
                                      ctes::AbstractVector{<:ThermalExpansion};

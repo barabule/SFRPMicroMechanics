@@ -585,31 +585,48 @@ end
     @test cte_eff.alpha1 < cte_eff.alpha2 ≈ cte_eff.alpha3
 
 
-    # #transverse ortho
-    # E1_c = 230.0
-    # E2_c = E3_c = 50.0
-    # G12_c = 10.0
-    # nu21_c = nu31_c = 0.03
-    # nu23_c = 0.39
-    # vf = 0.1
-    # ar = 22.0
-    # G23_c = E2_c / (2 * (1 +nu23_c))
-    # G13_c = G12_c
+    #transverse ortho
+    E1_c = 230.0
+    E2_c = E3_c = 50.0
+    G12_c = 10.0
+    nu21_c = nu31_c = 0.03
+    nu23_c = 0.39
+    vf = 0.1
+    ar = 22.0
+    G23_c = E2_c / (2 * (1 +nu23_c))
+    G13_c = G12_c
 
-    # pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, 0.35)
+    pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, 0.35)
 
-    # pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
-    #                                                     E2 = E2_c, E3 = E3_c,
-    #                                                     G12 = G12_c, G23 = G23_c, G31 = G13_c,
-    #                                                     nu21 = nu21_c, nu23 = nu23_c, nu31 = nu31_c)
+    pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
+                                                        E2 = E2_c, E3 = E3_c,
+                                                        G12 = G12_c, G23 = G23_c, G31 = G13_c,
+                                                        nu21 = nu21_c, nu23 = nu23_c, nu31 = nu31_c)
 
-    # cte_f = S.ThermalExpansion(1e-6, 20e-6, 20e-6)
-    # ctes = [cte_m, cte_f]
-    # fibers = [S.FiberPhase(pf, vf, ar, shape)]
-    # @info "CTE eff trans"
-    # cte_eff = S.effective_thermal_expansion(pm, fibers, ctes; mandel)
-    # display(cte_eff)
-
+    cte_f = S.ThermalExpansion(1e-6, 20e-6, 20e-6)
+    a = S.OrientationTensor(0.7, 0.2)
+    @info "Effective CTE Trans"
+    cte_eff_trans = S.ThermalExpansion(pm, pf, cte_m, cte_f, vf, ar, a, shape) 
+    display(cte_eff_trans)
+    
+    #only matrix => cte_eff == cte matrix
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, 0.0001, AR, a, shape)
+    @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3 ≈ alfa_m
+    #only fiber => cte_eff == cte fiber
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, 1.0, AR, a, shape)
+    @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3 ≈ alfa_f
+    #  0< vf<1 => cte inbetween, transverse ortho
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, 0.2, AR, a, shape)
+    @test alfa_f < cte_eff.alpha1 < cte_eff.alpha2 < cte_eff.alpha3 < alfa_m
+    # if a11=a22 = 1/3 => cte isotropic
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.OrientationTensor(1/3, 1/3), shape)
+    @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3
+    # if ar=1 => cte isotropic
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), 1, a, shape)
+    @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3
+    # if a22=a33 => alpha2 == alpha3
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.OrientationTensor(0.5, 0.25), shape)
+    @test cte_eff.alpha1 < cte_eff.alpha2 ≈ cte_eff.alpha3
 end
 
 
