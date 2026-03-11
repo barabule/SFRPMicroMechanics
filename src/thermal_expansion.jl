@@ -12,6 +12,14 @@ struct ThermalExpansion{T<:Real}
     end
 end
 
+function Base.show(io::IO, ::MIME"text/plain", p::T) where T<:ThermalExpansion
+    println(io, "Thermal expansion coefficients:")
+    println(io, "α₁ = $(p.alpha1)/°C")
+    println(io, "α₂ = $(p.alpha2)/°C")
+    println(io, "α₃ = $(p.alpha3)/°C")
+end
+
+
 function ThermalExpansion(a1::T) where T<:Real
     return ThermalExpansion(a1, a1, a1)
 end
@@ -65,19 +73,32 @@ function ThermalExpansion(matrix_properties, fiber_properties)
     return ThermalExpansion(αeff)
 end
 
-"""
-    compute_sfrp_cte(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
-Returns [alpha1, alpha2, alpha3] in the principal material directions.
-"""
-function ThermalExpansion(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22) 
+
+function ThermalExpansion(pm::IsotropicElasticParameters, 
+                          pf::IsotropicElasticParameters, 
+                          cte_m::ThermalExpansion, 
+                          cte_f::ThermalExpansion, 
+                          vf::Real, 
+                          AR::Real, 
+                          a::OrientationTensor,
+                          shape::InclusionGeometry)
+                          
+    Em, num = pm.E_modulus, pm.nu
+    Ef, nuf = pf.E_modulus, pf.nu
+
+    alpham = cte_m.alpha1
+    alphaf = cte_f.alpha1
+
+    a11, a22 = a.a11, a.a22
+
     # 1. Setup Stiffness
     Cm = isotropic_stiffness(Em, num)
     Cf = isotropic_stiffness(Ef, nuf)
     
     I6 = SMatrix{6, 6}(LinearAlgebra.I)
 
-    inclusion = SpheroidalInclusion()
-    S_eshelby = eshelby_tensor(inclusion, num, AR) |> convert_3333_to_66
+    
+    S_eshelby = eshelby_tensor(shape, num, AR) |> convert_3333_to_66
     
     # 2. MT Concentration Tensor
     Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))
@@ -108,4 +129,99 @@ function ThermalExpansion(Em, num, alpham, Ef, nuf, alphaf, vf, AR, a11, a22)
     alpha3 = (a1 - a2) * a33 + a2
     
     return ThermalExpansion(alpha1, alpha2, alpha3)
+end
+
+
+function ThermalExpansion(pm::IsotropicElasticParameters, 
+                          fiber::FiberPhase, 
+                          ctes::Vector{<:ThermalExpansion}, 
+                          a::OrientationTensor,
+                          )
+
+    @assert length(ctes)>=2 "2 CTEs must be given!"
+    @assert isa(fiber.elastic_properties, IsotropicElasticParameters) "Fiber must be isotropic!"
+
+    return ThermalExpansion(pm, 
+                            fiber.elastic_properties,
+                            ctes[1],
+                            ctes[2],
+                            fiber.volume_fraction,
+                            fiber.aspect_ratio,
+                            a,
+                            fiber.shape)
+
+end
+
+function effective_thermal_expansion(pm::IsotropicElasticParameters, 
+                                     fibers::AbstractVector{<:FiberPhase}, 
+                                     ctes::AbstractVector{<:ThermalExpansion};
+                                     mandel = true,
+                                     )
+
+    N = length(fibers)
+    @assert N+1 == length(ctes)
+
+    αm = to_voigt(first(ctes))
+    αf = [to_voigt(ctes[i]) for i in 2:lastindex(ctes)]
+
+    νm = pm.nu
+
+    Cm = stiffness_matrix_voigt(pm; mandel)
+    T = eltype(Cm)
+    ϕf = [f.volume_fraction for f in fibers]
+    Cf = [stiffness_matrix_voigt(f.elastic_properties; mandel) for f in fibers]
+    Sf = [tomandel(eshelby_tensor(f.shape, νm, f.aspect_ratio)) for f in fibers]
+
+
+    ΣϕfSI = SMatrix{6,6}(zeros(T, 6,6))
+    for i in 1:N
+        ΣϕfSI += ϕf[i] * (Sf[i] - LinearAlgebra.I)
+    end
+
+    αeff = αm
+    for i in 1:N
+        αeff += ϕf[i] * inv((Cf[i] - Cm) * (Sf[i] - ΣϕfSI + Cm)) * Cf[i] * (αf[i] - αm)
+    end
+    return ThermalExpansion(αeff)
+end
+
+
+function effective_thermal_expansion_chow(pm::IsotropicElasticParameters, 
+                                     fiber::FiberPhase, 
+                                     ctes::AbstractVector{<:ThermalExpansion})
+
+    νm = pm.nu
+    Em = pm.E_modulus
+    Gm = Em/(2 * (1+νm))
+    Km = Em / (3 * (1- 2νm))
+    pf = fiber.elastic_properties
+    νf = pf.nu
+    Ef = pf.E_modulus
+    Gf = Ef/(2 * (1+νf))
+    Kf = Ef / (3 * (1- 2νf))
+
+    S = eshelby_tensor(fiber.shape, νf, fiber.aspect_ratio)
+    ϕf = fiber.volume_fraction
+    αₘ = ctes[1].alpha1
+    γm = 3αₘ
+    αf = ctes[2]
+    γf = αf.alpha1 + αf.alpha2 + αf.alpha3
+
+
+    b1 = S[2,2,2,2] + S[3,3,2,2] + S[1,1,2,2]
+    b3 = S[2,2,1,1] + S[3,3,1,1] + S[1,1,1,1]
+
+    c1 = S[2,2,2,2] + S[2,2,3,3] -2S[1,1,2,2]
+    c3 = S[1,1,1,1] - S[2,2,1,1]
+
+    K1 = 1 + (Kf/Km - 1) * ((1 - ϕf) * b1 + ϕf)
+    K3 = 1 + (Kf/Km - 1) * ((1 - ϕf) * b3 + ϕf)
+
+    G1 = 1 + (Gf/Gm - 1) * ((1 - ϕf) * c1 + ϕf)
+    G3 = 1 + (Gf/Gm - 1) * ((1 - ϕf) * c3 + ϕf)
+
+    α11 = αₘ + ϕf * G1 / (2 * K1 * G3 + G1 * K3 * Km) * Kf / Km * (γf - γm)
+    α22 = α33 = αₘ + ϕf * G3 / (2 * K1 * G3 + G1 * K3 * Km) * Kf / Km * (γf - γm)
+
+    return ThermalExpansion(α11, α22, α33)
 end

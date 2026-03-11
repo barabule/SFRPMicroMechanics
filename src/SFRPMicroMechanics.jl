@@ -10,10 +10,10 @@ using Tensors
 # Include sub-modules
 include("typedefs.jl")
 include("eshelby.jl")
-include("thermal_expansion.jl")
 include("utils.jl")
 include("closures.jl")
 include("homogenization.jl")
+include("thermal_expansion.jl")
 include("analyse.jl")
 
 

@@ -1219,9 +1219,7 @@ version = "0.2.1"
 
 [[deps.SFRPMicroMechanics]]
 deps = ["GLMakie", "GeometryBasics", "LinearAlgebra", "Random", "StaticArrays", "Statistics", "Tensors"]
-git-tree-sha1 = "73cf4c2593047ea8f9164adee3cfa8fc0726304d"
-repo-rev = "main"
-repo-url = ".."
+path = ".."
 uuid = "85b1d378-0dff-4863-a11e-e07702869b2f"
 version = "0.1.0"
 
