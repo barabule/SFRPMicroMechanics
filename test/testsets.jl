@@ -867,4 +867,22 @@ end
     end
 
 
+    #IBOF - compared to fiberoripy
+    beta_ref = [0.007322197191712073, 
+                0.10261471647113499, 
+                2.6899603609285103, 
+                -0.15094735616892185, 
+                -3.209763487085262, 
+                1.5253864146381542]
+
+    A2 = S.OrientationTensor(0.7, 0.2)
+    (II, III) = S.get_invariants(A2)
+    bs = S.beta_coefficients(II, III)
+
+    @test all(isapprox.(bs, beta_ref, rtol = 1e-8))
+    # for (bi, bref) in zip(bs, beta_ref)
+    #     @test bi ≈ bref
+    # end
+
+
 end

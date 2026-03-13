@@ -6,6 +6,8 @@ using GeometryBasics
 using StaticArrays
 using Random
 using Tensors
+using Combinatorics: permutations
+
 
 # Include sub-modules
 include("typedefs.jl")

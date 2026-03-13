@@ -467,8 +467,8 @@ function beta_coefficients(II, III)
     
     # β3, β4, β6
 
-    Ct =     [0.24940908165786e2      -0.497217790110754e0            0.234146291570999e2;
-             -0.435101153160329e3        0.234987975114050e2           -0.412048043372534e3;
+    Ct =     [0.24940908165786e2        -0.497217790110754e0            0.234146291570999e2;
+             -0.435101153160329e3        0.234980797511405e2           -0.412048043372534e3;
               0.372389335663877e4       -0.391044251397838e3            0.319553200392089e4;
               0.703443657916476e4        0.153965820593506e3            0.573259594331015e4;
               0.823995187366106e6        0.152772950743819e6           -0.485212803064813e5;
@@ -477,27 +477,44 @@ function beta_coefficients(II, III)
              -0.991630690741981e7       -0.185949305922308e7            0.599066486689836e7;
              -0.159392396237307e5        0.296004865275814e4           -0.110656935176569e5;
               0.800970026849796e7        0.247717810054366e7           -0.460543580680696e8;
-             -0.237010458689252e7        0.101013983339062e6            0.203042960322847e7;
+             -0.237010458689252e7        0.101013983339062e6            0.203042960322874e7;
               0.379010599355267e8        0.732341494213578e7           -0.556606156734835e8;
              -0.337010820273821e8       -0.147919027644202e8            0.567424911007837e9;
               0.322219416256417e5       -0.104092072189767e5            0.128967058686204e5;
              -0.257258805870567e9       -0.635149929624336e8           -0.152752854956514e10;
               0.214419090344474e7       -0.247435106210237e6           -0.499321746092534e7;
              -0.449275591851490e8       -0.902980378929272e7            0.132124828143333e9;
-             -0.213133920223355e08       0.7249697968073995e7          -0.162359994620983e10;
+             -0.213133920223355e8        0.724969796807399e7          -0.162359994620983e10;
               0.157076702372204e10       0.487093452892595e9            0.792526849882218e10;
-             -0.232153488525298e05       0.138088690964946e5            0.466767581292985e4;
-             -0.395769398304473e10      -0.160162178614234e0           -0.128050778279459e11 ]
+             -0.232153488525298e5        0.138088690964946e5            0.466767581292985e4;
+             -0.395769398304473e10     -0.160162178614234e10           -0.128050778279459e11 ]
+
+    
 
     C = Ct'
     bs = zeros(3)
     for i in eachindex(bs)
-        bs[i] = C[i, 1] + C[i, 2] * II + C[i, 3] * II^2 + C[i, 4] * III + C[i, 5] * III^2 + 
-                C[i, 6] * II * III + C[i, 7] * II^2 * III + 
-                C[i,8] * II * III^2 + C[i, 9] * II^3 + C[i,10] * III^3 + C[i,11] * II^3 * III + C[i, 12] * II^2 * III^2 + 
-                C[i, 13] * II * III^3 + C[i, 14] * II^4 + C[i, 15] * III^4 + C[i, 16] * II^4 * III +
-                C[i, 17] * II^3 * III^2 + C[i, 18] * II^2 * III^3 +
-                C[i, 19] * II * III^4 + C[i, 20] * II^5 + C[i, 21] * III^5 
+        bs[i] = C[i,  1]  + 
+                C[i,  2]  * II + 
+                C[i,  3]  * II^2 + 
+                C[i,  4]  * III + 
+                C[i,  5]  * III^2 + 
+                C[i,  6]  * II * III + 
+                C[i,  7]  * II^2 * III + 
+                C[i,  8]  * II * III^2 + 
+                C[i,  9]  * II^3 + 
+                C[i, 10]  * III^3 + 
+                C[i, 11]  * II^3 * III + 
+                C[i, 12] * II^2 * III^2 + 
+                C[i, 13] * II * III^3 + 
+                C[i, 14] * II^4 + 
+                C[i, 15] * III^4 + 
+                C[i, 16] * II^4 * III +
+                C[i, 17] * II^3 * III^2 + 
+                C[i, 18] * II^2 * III^3 +
+                C[i, 19] * II * III^4 + 
+                C[i, 20] * II^5 + 
+                C[i, 21] * III^5 
     end
 
     (β3, β4, β6) = bs
@@ -516,21 +533,64 @@ function InvariantBasedOptimalFittedClosure(a::AbstractOrientationTensor)
     # a2 = to_matrix(a)
 
     invariants = get_invariants(a)
-    (β1, β2, β3, β4, β5, β6) = beta_coefficients(invariants.II, invariants.III)
+    (β1, β2, β3, β4, β5, β6)= betas = beta_coefficients(invariants.II, invariants.III)
     a2 = to_matrix(a)
     b(i,j) = sum(a2[i,m] * a2[m, j] for m in 1:3)
 
-    a4 = SArray{Tuple{3,3,3,3}}(
-            1/3 * β1 * (δ(i,j)*δ(k,l) + δ(i,k) * δ(j,l) + δ(i,l) * δ(j,k)) +
-            1/6 * β2 * (δ(i,j) * a2[k,l] + δ(k,l) * a2[i,j] + δ(i,k) * a2[j,l] + δ(i,l) * a2[j,k] + δ(j,k) * a2[i,l]) +
-            1/3 * β3 * (a2[i,j] * a2[k,l] + a2[i,k] * a2[j,l] + a2[i,l] * a2[j,k]) +
-            1/6 * β4 * (δ(i,j) * b(k, l) + δ(k,l) * b(i, j) + δ(i, k) * b(j, l) + δ(j,l) * b(i, k) + δ(i,l) * b(j,k) + δ(j,k) * b(i,l)) +
-            1/6 * β5 * (a2[i,j] * b(k,l) + a2[k,l] * b(i,j) + a2[i,k] * b(j,l) + a2[j,l] * b(i,k) + a2[i,l] * b(j,k) + a2[j,k] * b(i,l)) +
-            1/6 * β6 * (b(i,j) * b(k,l) + b(i,k)*b(j,l) + b(i,l)*b(j,k))
-            for i in 1:3, j in 1:3, k in 1:3, l in 1:3
-    )
+    # a4 = SArray{Tuple{3,3,3,3}}(
+    #         1/3 * β1 * (δ(i,j)*δ(k,l) + δ(i,k) * δ(j,l) + δ(i,l) * δ(j,k)) +
+    #         1/6 * β2 * (δ(i,j) * a2[k,l] + δ(k,l) * a2[i,j] + δ(i,k) * a2[j,l] + δ(i,l) * a2[j,k] + δ(j,k) * a2[i,l]) +
+    #         1/3 * β3 * (a2[i,j] * a2[k,l] + a2[i,k] * a2[j,l] + a2[i,l] * a2[j,k]) +
+    #         1/6 * β4 * (δ(i,j) * b(k, l) + δ(k,l) * b(i, j) + δ(i, k) * b(j, l) + δ(j,l) * b(i, k) + δ(i,l) * b(j,k) + δ(j,k) * b(i,l)) +
+    #         1/6 * β5 * (a2[i,j] * b(k,l) + a2[k,l] * b(i,j) + a2[i,k] * b(j,l) + a2[j,l] * b(i,k) + a2[i,l] * b(j,k) + a2[j,k] * b(i,l)) +
+    #         1/6 * β6 * (b(i,j) * b(k,l) + b(i,k)*b(j,l) + b(i,l)*b(j,k))
+    #         for i in 1:3, j in 1:3, k in 1:3, l in 1:3
+    # )
+    a4 = compute_ibof_full_tensor(a2, betas)
+
     return a4
 end
+
+"""
+    total_symmetrize(A::Tensor{4, dim})
+Computes the fully symmetric part (average of 24 permutations) 
+using the correct `permutedims` function.
+"""
+function total_symmetric_part(A::Tensor{4, dim}) where {dim}
+    # We generate the 24 unique permutations of (1, 2, 3, 4)
+    perms = permutations((1, 2, 3, 4))
+    
+    # Initialize the sum with a zero tensor of the same type
+    # Using 'zero(A)' ensures we match the element type and dimension
+    S = zero(A)
+    
+    for p in perms
+        # permutedims(A, Tuple(p)) reorders the indices i,j,k,l 
+        # according to the permutation p
+        S += permutedims(A, Tuple(p))
+    end
+    
+    return S / 24
+end
+
+function compute_ibof_full_tensor(a::SymmetricTensor{2, 3}, betas)
+    I2 = one(SymmetricTensor{2, 3})
+    
+    # Precompute powers of a for efficiency
+    a2 = a ⋅ a
+    
+    # Construct the base 4th-order tensor before total symmetrization
+    # We use ⊗ for the outer product (einsum "ij,kl->ijkl")
+    # Note: t4 is a standard Tensor{4}, it will become symmetric after the mapping
+    t4 = betas[1] * (I2 ⊗ I2) +
+         betas[2] * (I2 ⊗ a)  +
+         betas[3] * (a ⊗ a)   +
+         betas[4] * (I2 ⊗ a2) +
+         betas[5] * (a ⊗ a2)  +
+         betas[6] * (a2 ⊗ a2)
+
+    return total_symmetric_part(t4)
+end 
 
 
 IBOF(a) = InvariantBasedOptimalFittedClosure(a)
