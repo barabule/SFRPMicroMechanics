@@ -22,7 +22,9 @@ function start_gui(;
 
     closure_menu = Menu(fig, options=[("Linear", S.LinearClosure), 
                                       ("Quadratic", S.QuadraticClosure),
-                                      ("Hybrid", S.HybridClosure)], 
+                                      ("Hybrid", S.HybridClosure),
+                                      ("IBOF", S.IBOF),
+                                      ], 
                                         default = "Hybrid")
     matrix_sliders = SliderGrid(fig,
             (label = "Eₘ [GPa]", range = (0.5:0.1:5.0), startvalue = 3.0),
