@@ -71,19 +71,9 @@ function eshelby_tensor(::SphericalInclusion, nu::T, AR=nothing) where T<:Real
     
     fac = inv(15 * (1 - nu))
     
-    # S = MArray{Tuple{3,3,3,3}, T}(zeros(3,3,3,3))
-    # S[1,1,1,1] = S[2,2,2,2] = S[3,3,3,3] = (7 - 5nu) * fac
-    # S[1,1,2,2] = S[1,1,3,3] = S[2,2,1,1] = S[2,2,3,3] = S[3,3,1,1] = S[3,3,2,2] = (5nu - 1) * fac
-    # S[1,2,1,2] = S[1,2,2,1] = S[2,1,1,2] = S[2,1,2,1] =
-    # S[2,3,2,3] = S[2,3,3,2] = S[3,2,2,3] = S[3,2,3,2] = 
-    # S[1,3,1,3] = S[1,3,3,1] = S[3,1,1,3] = S[3,1,3,1] = (4 - 5nu) *fac
-
-    # return SymmetricTensor{4,3}(S)
-
     return SymmetricTensor{4,3}(
         (i,j,k,l) -> fac * ((5nu -1) * δ(i,j) * δ(k, l) + (4-5nu) * (δ(i,k) * δ(j,l) + δ(i,l)*δ(j,k)))
     )
-
 end
 
 

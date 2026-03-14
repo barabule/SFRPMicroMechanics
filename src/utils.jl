@@ -41,15 +41,23 @@ function convert_66_to_3333(C66; mandel = false)
 
     # Construct the 3x3x3x3 tensor
     # If mandel=true, we divide the C66 components by sqrt(2) for each shear index
-    C4 = @SArray [
-        begin
-            α = lookup[i][j]
-            β = lookup[k][l]
-            val = C66[α, β]
-            mandel ? val * get_scale(α, mandel) * get_scale(β, mandel) : val
-        end
-        for i=1:3, j=1:3, k=1:3, l=1:3
-    ]
+    # C4 = @SArray [
+    #     begin
+    #         α = lookup[i][j]
+    #         β = lookup[k][l]
+    #         val = C66[α, β]
+    #         mandel ? val * get_scale(α, mandel) * get_scale(β, mandel) : val
+    #     end
+    #     for i=1:3, j=1:3, k=1:3, l=1:3
+    # ]
     
-    return C4
+    # return C4
+    return SymmetricTensor{4,3}(
+        (i, j, k, l) -> begin
+                α = lookup[i][j]
+                β = lookup[k][l]
+                val = C66[α, β] * get_scale(α, mandel) * get_scale(β, mandel)
+            end
+    )
+
 end

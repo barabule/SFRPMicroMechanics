@@ -337,38 +337,32 @@ end
 
 
 
+#######    ORIENTATION AVERAGING        ###############
+
+
 
 # Advani-Tucker Orientation Averaging
-function orientation_average(C_aligned, a::AbstractOrientationTensor; 
+function orientation_average(C_aligned::AbstractMatrix, a::AbstractOrientationTensor; 
                             closure_type = HybridClosure::Type{<:AbstractClosure}, 
                             mandel = true,
                             )
     
-    (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(C_aligned; mandel) #this works
-    a2 = to_matrix(a)
-    a4 = closure(a, closure_type)
 
-    # The Advani-Tucker orientation averaging formula:
-#     # <C_ijkl> = b1(a_ijkl) + b2(a_ij*d_kl + a_kl*d_ij) + 
-#     #            b3(a_ik*d_jl + a_il*d_jk + a_jl*d_ik + a_jk*d_il) + 
-#     #            b4(d_ij*d_kl) + b5(d_ik*d_jl + d_il*d_jk)
-
-    Cavg = SymmetricTensor{4, 3}(
-        (i, j, k, l) -> 
-                    B1 * a4[i, j, k, l] + 
-                    B2 * (a2[i, j] * δ(k,l) + a2[k, l] * δ(i, j)) +
-                    B3 * (a2[i, k] * δ(j, l) + a2[i,l] * δ(j, k) + a2[j, l] * δ(i, k) + a2[j, k] * δ(i, l)) +
-                    B4 * (δ(i, j) * δ(k, l)) + 
-                    B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
-                    )
-
-    # return convert_3333_to_66(Cavg; mandel)
+    tens = convert_66_to_3333(C_aligned; mandel)
+    Cavg = orientation_average(tens,a; closure_type)
+    
     return mandel ? tomandel(Cavg) : tovoigt(Cavg)
 end
 
 
-function orientation_averaging_coefficients(C; mandel = true)
+function orientation_averaging_coefficients(C::AbstractMatrix; mandel = true)
     tens = convert_66_to_3333(C; mandel)
+    
+    return orientation_averaging_coefficients(tens)
+end
+
+function orientation_averaging_coefficients(tens::SymmetricTensor{4,dim}) where {dim}
+    
 
     B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]
            
@@ -385,21 +379,13 @@ end
 
 
 function orientation_average(tens::SymmetricTensor{4, 3}, a::AbstractOrientationTensor; 
-                            closure_type = HybridClosure::Type{<:AbstractClosure},
-                            mandel = true)
+                            closure_type = HybridClosure::Type{<:AbstractClosure})
 
     
-    B1 = tens[1,1,1,1] + tens[2,2,2,2] - 2 * tens[1,1,2,2] - 4 * tens[1,2,1,2]
-           
-    B2 = tens[1,1,2,2] - tens[2,2,3,3]
-
-    B3 = tens[1,2,1,2] + 1/2 * (tens[2,2,3,3] - tens[2,2,2,2])
-
-    B4 = tens[2,2,3,3]
-
-    B5 = 1/2 * (tens[2,2,2,2] - tens[2,2,3,3])
+    (B1, B2, B3, B4, B5) = orientation_averaging_coefficients(tens)
 
     a4 = closure(a, closure_type)
+    a2 = to_matrix(a)
 
     Cavg = SymmetricTensor{4, 3}(
         (i, j, k, l) -> 
@@ -410,6 +396,6 @@ function orientation_average(tens::SymmetricTensor{4, 3}, a::AbstractOrientation
                     B5 * (δ(i, k) * δ(j, l) + δ(i, l) * δ(j, k))
                     )
 
-    return mandel ? tomandel(Cavg) : tovoigt(Cavg)
+    return Cavg
 
 end
