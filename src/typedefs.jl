@@ -446,12 +446,10 @@ function decompose_eigenvalue(a::AbstractOrientationTensor)
     amat = to_matrix(a)
     lambda, vecs = eigen(amat) 
     # @info "lambda $lambda"
-    a11, a22 = lambda[3], lambda[2] 
+    idx = sortperm(lambda, rev= true)
+    a11, a22 , _ = lambda[idx]
     
-    R =         Tensor{2,3}(
-                             [vecs[1,3] vecs[1,2] vecs[1,1];
-                              vecs[2,3] vecs[2,2] vecs[1,2];
-                              vecs[3,3] vecs[2,3] vecs[1,3]])
+    R = Tensor{2,3}(vecs[:, idx])
     return (;tensor = OrientationTensor(a11, a22),
             rotation = R)
     

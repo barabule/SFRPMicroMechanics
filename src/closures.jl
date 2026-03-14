@@ -182,16 +182,16 @@ function HybridClosure(a2::SymmetricTensor{2,3})
 end
 
 
-function HL1_closure((a2::AbstractMatrix))
+# function HL1_closure((a2::AbstractMatrix))
     
-    b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
+#     b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
 
-    SArray{Tuple{3,3,3,3}}(2/5 * (δ(i, j) * a2[k, l] + δ(k, l) * a2[i, j]) -
-                           1/5 * (a2[i, j] * a2[k, l]) +
-                           3/5 * (a2[i, k] * a2[j, l] + a2[i, l] * a2[j, k]) -
-                           2/5 * (δ(i, j) * b(k, l) + δ(k, l) * b(i, j))
-                           for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
-end
+#     SArray{Tuple{3,3,3,3}}(2/5 * (δ(i, j) * a2[k, l] + δ(k, l) * a2[i, j]) -
+#                            1/5 * (a2[i, j] * a2[k, l]) +
+#                            3/5 * (a2[i, k] * a2[j, l] + a2[i, l] * a2[j, k]) -
+#                            2/5 * (δ(i, j) * b(k, l) + δ(k, l) * b(i, j))
+#                            for i in 1:3, j in 1:3, k in 1:3, l in 1:3)
+# end
 
 HL1Closure(a2) = HL1_closure(a2)
 
@@ -207,22 +207,22 @@ function HL1Closure(a2::SymmetricTensor{2,3})
 end
 
 
-function HL2_closure((a2::AbstractMatrix))
+# function HL2_closure((a2::AbstractMatrix))
     
     
-    b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
+#     b(i, j) = sum(a2[i, m] * a2[m, j] for m in 1:3)
     
-    e(i, j, k, l) = exp(2 * (1 - 3 * a2[i, j] * a2[k, l]) / (1 - a2[i, j] * a2[k, l]))
+#     e(i, j, k, l) = exp(2 * (1 - 3 * a2[i, j] * a2[k, l]) / (1 - a2[i, j] * a2[k, l]))
 
-    SArray{Tuple{3,3,3,3}}(26/315 * (δ(i,j)*δ(k,l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k)) *  e(i, j, k, l) +
-                            16/63 * (a2[i, j] * δ(k, l) + a2[k, l] * δ(i,j)) * e(i, j, k, l) -
-                            4/21  * (a2[i, k] * δ(j, l) + a2[j,l] * δ(i, k) + a2[i, l] * δ(j, k) + a2[j, k]* δ(i, l)) * 
-                                     e(i, j, k, l) +
-                            (a2[i,j]* a2[k,l] + a2[i,k] * a2[j, l] + a2[i, l] * a2[j, k]) - 
-                            2 / (δ(i,j) * b(k,l) + δ(k,l) * b(i,j)) * b(i,j) * (b(k,l))
-                                for i in 1:3, j in 1:3, k in 1:3, l in 1:3    
-                                )
-end
+#     SArray{Tuple{3,3,3,3}}(26/315 * (δ(i,j)*δ(k,l) + δ(i,k) * δ(j, l) + δ(i, l) * δ(j, k)) *  e(i, j, k, l) +
+#                             16/63 * (a2[i, j] * δ(k, l) + a2[k, l] * δ(i,j)) * e(i, j, k, l) -
+#                             4/21  * (a2[i, k] * δ(j, l) + a2[j,l] * δ(i, k) + a2[i, l] * δ(j, k) + a2[j, k]* δ(i, l)) * 
+#                                      e(i, j, k, l) +
+#                             (a2[i,j]* a2[k,l] + a2[i,k] * a2[j, l] + a2[i, l] * a2[j, k]) - 
+#                             2 / (δ(i,j) * b(k,l) + δ(k,l) * b(i,j)) * b(i,j) * (b(k,l))
+#                                 for i in 1:3, j in 1:3, k in 1:3, l in 1:3    
+#                                 )
+# end
 
 HL2Closure(a2)  = HL2_closure(a2)
 
@@ -263,7 +263,20 @@ function closure(a::AbstractOrientationTensor, CT::Type{<:AbstractOrthotropicClo
     return convert_66_to_3333(R66 * c66 * R66'; mandel = false)#finally rotate back
 end
 
-
+function convert_rot_33_to_66(R33)
+    Q = R33 #already reordered
+    Q11, Q21, Q31 = Q[1,1], Q[2,1], Q[3,1]
+    Q12, Q22, Q32 = Q[1,2], Q[2,2], Q[3,2]
+    Q13, Q23, Q33 = Q[1,3], Q[2,3], Q[3,3]
+    
+    R66 = @SMatrix [Q11 * Q11  Q12 * Q12  Q13 * Q13        2Q12 * Q13                2Q11 * Q13           2Q11 * Q12;
+                    Q21 * Q21  Q22 * Q22  Q23 * Q23        2Q22 * Q23                2Q21 * Q23           2Q21 * Q22;
+                    Q31 * Q31  Q32 * Q32  Q33 * Q33        2Q32 * Q33                2Q31 * Q33           2Q31 * Q32;
+                    Q21 * Q31  Q22 * Q32  Q23 * Q33    Q22 * Q33 + Q23 * Q32   Q23 * Q31 + Q21 * Q33   Q21 * Q32 + Q22 * Q31;
+                    Q31 * Q11  Q32 * Q12  Q33 * Q13    Q32 * Q13 + Q33 * Q12   Q33 * Q11 + Q31 * Q13   Q31 * Q12 + Q32 * Q11;
+                    Q11 * Q21  Q12 * Q22  Q13 * Q23    Q12 * Q23 + Q13 * Q22   Q13 * Q21 + Q11 * Q23   Q11 * Q22 + Q12 * Q21]
+    return R66
+end
 
 
 function smooth_orthotropic_closure(a1::T, a2::T) where T<:Real
@@ -432,26 +445,6 @@ function compute_modified_eigenvalue_closure_matrix(a1, a2)
 
 end
 
-
-function convert_rot_33_to_66(R33)
-    Q = R33 #already reordered
-    Q11, Q21, Q31 = Q[1,1], Q[2,1], Q[3,1]
-    Q12, Q22, Q32 = Q[1,2], Q[2,2], Q[3,2]
-    Q13, Q23, Q33 = Q[1,3], Q[2,3], Q[3,3]
-    # Q[1,1]^2 Q[1,2]^2 Q[1,3]^2 2*Q[1,2]*Q[1,3] 2*Q[1,1]*Q[1,3] 2*Q[1,1]*Q[1,2];
-    # Q[2,1]^2 Q[2,2]^2 Q[2,3]^2 2*Q[2,2]*Q[2,3] 2*Q[2,1]*Q[2,3] 2*Q[2,1]*Q[2,2];
-    # Q[3,1]^2 Q[3,2]^2 Q[3,3]^2 2*Q[3,2]*Q[3,3] 2*Q[3,1]*Q[3,3] 2*Q[3,1]*Q[3,2];
-    # Q[2,1]*Q[3,1] Q[2,2]*Q[3,2] Q[2,3]*Q[3,3] (Q[2,2]*Q[3,3] + Q[2,3]*Q[3,2]) (Q[2,1]*Q[3,3] + Q[2,3]*Q[3,1]) (Q[2,1]*Q[3,2] + Q[2,2]*Q[3,1]);
-    # Q[1,1]*Q[3,1] Q[1,2]*Q[3,2] Q[1,3]*Q[3,3] (Q[1,2]*Q[3,3] + Q[1,3]*Q[3,2]) (Q[1,1]*Q[3,3] + Q[1,3]*Q[3,1]) (Q[1,1]*Q[3,2] + Q[1,2]*Q[3,1]);
-    # Q[1,1]*Q[2,1] Q[1,2]*Q[2,2] Q[1,3]*Q[2,3] (Q[1,2]*Q[2,3] + Q[1,3]*Q[2,2]) (Q[1,1]*Q[2,3] + Q[1,3]*Q[2,1]) (Q[1,1]*Q[2,2] + Q[1,2]*Q[2,1])
-    R66 = @SMatrix [Q11 * Q11  Q12 * Q12  Q13 * Q13        2Q12 * Q13                2Q11 * Q13           2Q11 * Q12;
-                    Q21 * Q21  Q22 * Q22  Q23 * Q23        2Q22 * Q23                2Q21 * Q23           2Q21 * Q22;
-                    Q31 * Q31  Q32 * Q32  Q33 * Q33        2Q32 * Q33                2Q31 * Q33           2Q31 * Q32;
-                    Q21 * Q31  Q22 * Q32  Q23 * Q33    Q22 * Q33 + Q23 * Q32   Q23 * Q31 + Q21 * Q33   Q21 * Q32 + Q22 * Q31;
-                    Q31 * Q11  Q32 * Q12  Q33 * Q13    Q32 * Q13 + Q33 * Q12   Q33 * Q11 + Q31 * Q13   Q31 * Q12 + Q32 * Q11;
-                    Q11 * Q21  Q12 * Q22  Q13 * Q23    Q12 * Q23 + Q13 * Q22   Q13 * Q21 + Q11 * Q23   Q11 * Q22 + Q12 * Q21]
-    return R66
-end
 
 
 ### INVARIANT BASED CLOSURES

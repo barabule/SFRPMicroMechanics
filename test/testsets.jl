@@ -459,12 +459,12 @@ end
     
     (a1, a2, a3, a4, a5, a6) = (0.7171, 0.2389, 0.0439, -0.0043, 0.0068, -0.0165)
 
-    N2 =S.SMatrix{3,3}([a1 a6 a5;
-                                        a6 a2 a4;
-                                        a5 a4 a3])
+    # N2 =S.SMatrix{3,3}([a1 a6 a5;
+    #                                     a6 a2 a4;
+    #                                     a5 a4 a3])
 
-    N4 = S.convert_3333_to_66(
-                            S.HL2_closure(N2);mandel=true)
+    # N4 = S.convert_3333_to_66(
+    #                         S.HL2_closure(N2);mandel=true)
     
     
     ## isotropic == transverse with isotropic props
@@ -857,10 +857,21 @@ end
 
     Q, rot = qr(randn(3,3))
     R = Matrix(Q)
-    adiag = diagm([0.6, 0.3, 0.1])
+    # @info "R"
+    # display(R)
+    I3 = [1 0 0;
+          0 1 0;
+          0 0 1]
+    @test all(isapprox.(R * R',I3, atol = 1e-8)) #this must pass
+    # display(R * R')
+    
+    #generate a randomly rotated orientation tensor
+    a11, a22 = 0.6, 0.3
+    adiag = diagm([a11, a22, 1-a11 -a22])
     amat = R * adiag * R'
     a = S.FullOrientationTensor(amat[1, 1], amat[2,2], amat[2,3], amat[1,3], amat[1,2])
     a2 = S.to_matrix(a)
+
     for CT in CTs
         @info "CT = $CT"
         # @test S.test_closure_approximation(a, CT; tol = 1e-8)
@@ -870,6 +881,33 @@ end
         # @test S.is_positive_semidef(N4)
     end
 
+    #the simple case
+    a_eig = S.OrientationTensor(a11, a22)
+    a2 = S.to_matrix(a_eig)
+    for CT in CTs
+        @info "CT = $CT"
+        # @test S.test_closure_approximation(a, CT; tol = 1e-8)
+        N4 = S.closure(a_eig, CT)
+        @test S.is_normalized(N4,a2)
+        @test S.is_symmetric(N4)
+        # @test S.is_positive_semidef(N4)
+    end
+
+    # N4 = S.closure(a_eig, S.ORF)
+    # @info("N4 - ORF")
+    # display(N4)
+
+    # Rref = [0.21910778 -0.76198347 -0.60940378;
+    #         0.67076085 -0.3359456   0.66122647;
+    #        -0.70857016 -0.55364406  0.43750039]
+
+    # a_rot = Rref * S.to_matrix(a_eig) * Rref'
+    # @info "a_rot"
+    # display(a_rot)
+    # a_rot_full = S.FullOrientationTensor(a_rot[1,1], a_rot[2,2], a_rot[2,3], a_rot[1,3], a_rot[1,2])
+    # N4 = S.closure(a_rot_full, S.ORF)
+    # @info "rotated N4"
+    # display(N4)
 
     #IBOF - compared to fiberoripy
     beta_ref = [0.007322197191712073, 
