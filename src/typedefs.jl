@@ -199,15 +199,40 @@ function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mand
     nu12 = nu21 * E1 / E2
     nu13 = nu31 * E1 / E3
     nu23 = nu32 * E2 / E3
-    f = mandel ? 1/2 : 1
-    C = @SMatrix             [    1/E1     -nu21/E2      -nu31/E3   0     0     0;
-                                -nu12/E1     1/E2        -nu32/E3   0     0     0;
-                                -nu13/E1   -nu23/E2        1/E3     0     0     0;
-                                   0          0             0     f/G23   0     0;
-                                   0          0             0       0    f/G31  0;
-                                   0          0             0       0     0    f/G12]
+    f = mandel ? 2 : 1
 
-    return inv(C)    
+    Δ = 1 - nu12*nu21 - nu23*nu32 - nu31*nu13 - 2*nu21*nu32*nu13
+
+    # --- Stability Guards ---
+    if Δ < 0
+        error("Material is physically unstable (Δ = $Δ). Positive definiteness violated. Check Poisson's ratios.")
+    elseif Δ < 1e-6
+        @warn "Material is near a stability limit (Δ = $Δ). Results may be numerically sensitive."
+    end
+
+    # 3. Stiffness Components
+    # Formula check: C11 = E1(1 - nu23*nu32) / Δ
+    C11 = E1 * (1 - nu23*nu32) / Δ
+    C22 = E2 * (1 - nu31*nu13) / Δ
+    C33 = E3 * (1 - nu12*nu21) / Δ
+
+    C12 = E1 * (nu21 + nu31*nu23) / Δ
+    C13 = E1 * (nu31 + nu21*nu32) / Δ
+    C23 = E2 * (nu32 + nu12*nu31) / Δ
+
+    # 4. Shear Components
+    C44 = f * G23
+    C55 = f * G31
+    C66 = f * G12
+
+    return @SMatrix [
+        C11  C12  C13  0    0    0;
+        C12  C22  C23  0    0    0;
+        C13  C23  C33  0    0    0;
+        0    0    0    C44  0    0;
+        0    0    0    0    C55  0;
+        0    0    0    0    0    C66
+    ]  
 end
 
 function stiffness_tensor(p::OrthotropicElasticParameters;mandel=false)

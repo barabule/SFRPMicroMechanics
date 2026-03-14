@@ -193,29 +193,29 @@ end
 
 
 function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
-                    volume_fraction, aspect_ratio)
+                    volume_fraction, aspect_ratio; mandel = true)
 
-    Em, nu_m = pm.E, pm.nu
-    Ef, nu_f = pf.E, pf.nu
+    Em, nu_m = pm.E_modulus, pm.nu
+    Ef, nu_f = pf.E_modulus, pf.nu
     vf = volume_fraction
     ar = aspect_ratio
-    return halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+    return halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel)
 end
 
-function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel = true)
 
     ζ1 = 2ar
     η1 = (Ef/Em - 1)/ (Ef/Em + ζ1)
 
     E11_UD = Em * (1 + ζ1 * η1 * vf) / (1 - η1 * vf)
-    @info "E11 $E11_UD"
+    # @info "E11 $E11_UD"
     nu12_UD = nu_f * vf + nu_m * (1 - vf)
 
     ζ2 = 2
     η2 = (Ef/Em - 1) / (Ef/Em + ζ2)
 
     E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - η2 * vf)
-    @info "E22 $E22_UD"
+    # @info "E22 $E22_UD"
     ζ3 = 1
     Gf = Ef / (2 * (1 + nu_f))
     Gm = Em / (2 * (1 + nu_m))
@@ -234,27 +234,128 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
 
     nu31_UD = (nu12_UD * E33_UD) / E11_UD
 
-    S11_UD = 1 / E11_UD
-    S22_UD = 1 / E22_UD
-    S33_UD = 1 / E33_UD
-    S12_UD = -nu12_UD / E11_UD
-    S13_UD = -nu31_UD / E33_UD
-    S23_UD = -nu23_UD / E22_UD
-    S44_UD = 1/G23_UD
-    S55_UD = 1/G31_UD
-    S66_UD = 1/G12_UD
+    # S11_UD = 1 / E11_UD
+    # S22_UD = 1 / E22_UD
+    # S33_UD = 1 / E33_UD
+    # S12_UD = -nu12_UD / E11_UD
+    # S13_UD = -nu31_UD / E33_UD
+    # S23_UD = -nu23_UD / E22_UD
+    # S44_UD = 1/G23_UD
+    # S55_UD = 1/G31_UD
+    # S66_UD = 1/G12_UD
 
-    S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0      0     0;
-                     S12_UD  S22_UD  S23_UD  0      0     0;
-                     S13_UD  S23_UD  S33_UD  0      0     0;
-                       0       0       0    S44_UD  0     0;
-                       0       0       0     0   S55_UD   0;
-                       0       0       0     0      0  S66_UD]  
-    return (inv(S_UD), (;E11_UD, E22_UD, G12_UD, G23_UD, nu12_UD, nu23_UD))
+    # S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0      0     0;
+    #                  S12_UD  S22_UD  S23_UD  0      0     0;
+    #                  S13_UD  S23_UD  S33_UD  0      0     0;
+    #                    0       0       0    S44_UD  0     0;
+    #                    0       0       0     0   S55_UD   0;
+    #                    0       0       0     0      0  S66_UD]  
+    # return (inv(S_UD), (;E11_UD, E22_UD, G12_UD, G23_UD, nu12_UD, nu23_UD))
+
+    peff = OrthotropicElasticParameters(;E1 = E11_UD,
+                                         E2 = E22_UD, 
+                                         E3 = E33_UD, 
+                                         G12 = G12_UD, 
+                                         G23 = G23_UD, 
+                                         G31 = G31_UD, 
+                                         nu12 = nu12_UD, 
+                                         nu31 = nu31_UD, 
+                                         nu23 = nu23_UD)
+
+                                         
+    return stiffness_matrix_voigt(peff; mandel)
 
 end
 
 
+
+
+
+# Adapted for Transverse Isotropic Fibers
+# Ef1: Fiber Axial Modulus
+# Ef2: Fiber Transverse Modulus
+# Gf12: Fiber Longitudinal-Transverse Shear Modulus
+# Gf23: Fiber Transverse-Transverse Shear Modulus
+# nu_f12: Fiber Major Poisson's Ratio
+function halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu_f12, Em, nu_m, vf, ar; mandel = true)
+
+    # 1. Longitudinal Modulus (E11) 
+    # Usually Rule of Mixtures is more accurate for UD, but Halpin-Tsai with 2*ar works too
+    ζ1 = 2 * ar
+    η1 = (Ef1 / Em - 1) / (Ef1 / Em + ζ1)
+    E11_UD = Em * (1 + ζ1 * η1 * vf) / (1 - η1 * vf)
+
+    # 2. Major Poisson's Ratio (nu12)
+    nu12_UD = nu_f12 * vf + nu_m * (1 - vf)
+
+    # 3. Transverse Modulus (E22 & E33)
+    # CRITICAL: Use Ef2 here, not Ef1
+    ζ2 = 2
+    η2 = (Ef2 / Em - 1) / (Ef2 / Em + ζ2)
+    E22_UD = E33_UD = Em * (1 + ζ2 * η2 * vf) / (1 - η2 * vf)
+
+    # 4. Longitudinal Shear Modulus (G12 & G13)
+    # CRITICAL: Use Gf12 here
+    Gm = Em / (2 * (1 + nu_m))
+    ζ3 = 1
+    η3 = (Gf12 / Gm - 1) / (Gf12 / Gm + ζ3)
+    G12_UD = G31_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - η3 * vf)
+
+    # 5. Transverse Shear Modulus (G23)
+    # CRITICAL: Use Gf23 here
+    # ζ4 is often simplified to 1 or calculated via matrix properties as you did
+    ζ4 = (1 + nu_m) / (3 - nu_m - 4 * nu_m^2)
+    η4 = (Gf23 / Gm - 1) / (Gf23 / Gm + ζ4)
+    G23_UD = Gm * (1 + ζ4 * η4 * vf) / (1 - η4 * vf)
+
+    # 6. Secondary Poisson's Ratios
+    # Using the relationship for transverse isotropy
+    nu23_UD = E22_UD / (2 * G23_UD) - 1
+    nu21_UD = (nu12_UD * E22_UD) / E11_UD # Reciprocity
+    nu31_UD = nu21_UD
+
+    peff = OrthotropicElasticParameters(;E1 = E11_UD,
+                                         E2 = E22_UD, 
+                                         E3 = E33_UD, 
+                                         G12 = G12_UD, 
+                                         G23 = G23_UD, 
+                                         G31 = G31_UD, 
+                                         nu21 = nu21_UD, 
+                                         nu31 = nu31_UD, 
+                                         nu23 = nu23_UD)
+
+
+    return stiffness_matrix_voigt(peff; mandel)
+
+    # # 7. Compliance Matrix
+    # S11_UD = 1 / E11_UD
+    # S22_UD = 1 / E22_UD
+    # S33_UD = 1 / E33_UD
+    # S12_UD = -nu12_UD / E11_UD
+    # S13_UD = -nu31_UD / E33_UD
+    # S23_UD = -nu23_UD / E22_UD
+    # S44_UD = 1 / G23_UD
+    # S55_UD = 1 / G31_UD
+    # S66_UD = 1 / G12_UD
+
+    # S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0       0      0;
+    #                  S12_UD  S22_UD  S23_UD  0       0      0;
+    #                  S13_UD  S23_UD  S33_UD  0       0      0;
+    #                    0       0       0    S44_UD   0      0;
+    #                    0       0       0      0    S55_UD   0;
+    #                    0       0       0      0      0    S66_UD]  
+    
+    # return inv(S_UD)
+end
+
+
+function halpin_tsai(pm::IsotropicElasticParameters, pf::OrthotropicElasticParameters, vf, ar)
+    Em, nu_m = pm.E_modulus, pm.nu
+    Ef1, Ef2, Gf12, Gf23, nu21_f = pf.E1, pf.E2, pf.G12, pf.G23, pf.nu21 
+    nu12_f = nu21_f * Ef1 / Ef2
+
+    return halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu12_f, Em, nu_m, vf, ar)
+end
 
 
 

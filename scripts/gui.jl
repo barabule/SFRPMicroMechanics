@@ -25,7 +25,7 @@ function start_gui(;
                                       ("Hybrid", S.HybridClosure),
                                       ("IBOF", S.IBOF),
                                       ], 
-                                        default = "Hybrid")
+                                        default = "IBOF")
     matrix_sliders = SliderGrid(fig,
             (label = "Eₘ [GPa]", range = (0.5:0.1:5.0), startvalue = 3.0),
             (label = "νₘ", range=  (0.01:0.01:0.49), startvalue  =0.3),
@@ -38,7 +38,13 @@ function start_gui(;
             width = BAR_WIDTH/2
     )
 
+    USE_MT_Toggle = Toggle(fig, active = true)
+    averaging_method = lift(USE_MT_Toggle.active) do val 
+        val ? "Mori Tanaka" : "Halpin Tsai"
+    end
+
     BOTTOM_BAR[1,1] = vgrid!(
+        hgrid!(USE_MT_Toggle, Label(fig, averaging_method)),
         Label(fig, "Matrix", halign = :left),
         matrix_sliders,
         Label(fig, "Orientation", halign = :left),
@@ -56,10 +62,10 @@ function start_gui(;
                                                     $(orientation_tensor_observables[2]))
 
     fiber_isotropic_sliders = SliderGrid(fig,
-            (label = "E", range = (1.0:0.5:500.0), format = "{:.1f}", startvalue = 70.0),
+            (label = "E [GPa]", range = (1.0:0.5:500.0), format = "{:.1f}", startvalue = 70.0),
             (label = "nu", range = (0.01:0.01:0.49), format = "{:.2f}", startvalue = 0.22),
             (label = "fract", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
-            (label = "aspect", range = (0.1:0.1:50.0), format = "{:.2f}", startvalue = 10.0),
+            (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
             width = BAR_WIDTH/2,
             
             )
@@ -74,7 +80,7 @@ function start_gui(;
             (label = "ν₃₂", range = (0.2:0.01:0.49), format = "{:.2f}", startvalue = 0.39),
             (label = "G₁₂ [GPa]", range = (1.0:0.5:200.0), format = "{:.1f}", startvalue = 50.0),
             (label = "vol_f", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
-            (label = "aspect", range = (0.1:0.1:50.0), format = "{:.2f}", startvalue = 10.0),
+            (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
             width = BAR_WIDTH/2,
             )
 
@@ -89,6 +95,8 @@ function start_gui(;
 
     offscreen = GridLayout(bbox = (-200, -100,0, 100))
     offscreen[1,1] = fiber_isotropic_sliders
+    
+    offscreen2 = GridLayout(bbox = (-200, -100,0, 100))
     
     
     cb_isotropic = Checkbox(fig, checked = false)
@@ -110,13 +118,16 @@ function start_gui(;
 
 
     on(cb_isotropic.checked) do val
-        
+        # isotropic = val || USE_MT_Toggle.active[] 
+        # if USE_MT_Toggle.active[]# keep iso always when H-T
+
+        # end
         BOTTOM_RIGHT_BAR[2,1] = val ? fiber_isotropic_sliders : fiber_trans_sliders
         offscreen[1,1] = val ? fiber_trans_sliders : fiber_isotropic_sliders
     end
 
 
-    # sliderobservables = [s.value for s in sg.sliders]
+   
     
     vol_frac = Observable(0.1)
     aspect_ratio = Observable(10.0)
@@ -180,6 +191,7 @@ function start_gui(;
                                angles;
                                mandel = true,
                                symmetrize = true,
+                               mori_tanaka = $(USE_MT_Toggle.active),
                                )
     lines!(ax, phi, Emods, color = :black)
 
@@ -188,10 +200,6 @@ function start_gui(;
 
     fig
 end
-
-
-
-
 
 
 function compute_emod(pm::S.IsotropicElasticParameters, 
@@ -203,7 +211,8 @@ function compute_emod(pm::S.IsotropicElasticParameters,
                       closure::Type{<:S.AbstractClosure},
                       angles::AbstractVector{<:Real};
                       mandel = true,
-                      symmetrize = true)
+                      symmetrize = true,
+                      mori_tanaka = true)
 
     # @info "pm", pm
     # @info "pf", pf
@@ -213,13 +222,15 @@ function compute_emod(pm::S.IsotropicElasticParameters,
     # @info "inclusion", inclusion
     # @info "closure", closure
 
-    fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
-
-    Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize)
-    # @info "Cmt"
-    # display(Cmt)
-    # a2= S.OrientationTensor(A11, A22)
-    # CT = S.HybridClosure
+    
+    if mori_tanaka
+        fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
+        Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize)
+    else
+        
+        Cmt = S.halpin_tsai(pm, pf, volume_fraction, aspect_ratio)
+    end
+    
     Cavg = S.orientation_average(Cmt, a2; closure_type = closure, mandel)
     # @info "Cavg" 
     # display(Cavg)
