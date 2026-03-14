@@ -848,6 +848,7 @@ end
            S.HybridClosure, 
            S.HL1Closure,
            S.HL2Closure,
+           S.ORS,
            S.ORF, 
            S.ORL, 
            S.ORFM, 

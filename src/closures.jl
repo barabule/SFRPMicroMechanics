@@ -283,8 +283,8 @@ function smooth_orthotropic_closure(a1::T, a2::T) where T<:Real
     
 
     Ct =       @SMatrix [-0.15   -0.15    0.60;
-                         1.15    1.15   -0.60;
-                        -0.10   -0.10   -0.60]
+                          1.15    0.15   -0.60;
+                         -0.10    0.90   -0.60]
     C = Ct'
     A11 = C[1, 1] + C[1, 2] * a1 + C[1, 3] * a2
     A22 = C[2, 1] + C[2, 2] * a1 + C[2, 3] * a2
