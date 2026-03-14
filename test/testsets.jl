@@ -602,10 +602,7 @@ end
 
     pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, 0.35)
 
-    pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
-                                                        E2 = E2_c, E3 = E3_c,
-                                                        G12 = G12_c, G23 = G23_c, G31 = G13_c,
-                                                        nu21 = nu21_c, nu23 = nu23_c, nu31 = nu31_c)
+    pf = SFRPMicroMechanics.TransverseIsotropicElasticParameters(E1_c, E2_c, G12_c, G23_c, nu21_c)
 
     cte_f = S.ThermalExpansion(1e-6, 20e-6, 20e-6)
     a = S.OrientationTensor(0.7, 0.2)

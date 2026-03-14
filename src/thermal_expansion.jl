@@ -154,7 +154,7 @@ end
 
 
 function ThermalExpansion(pm::IsotropicElasticParameters, 
-                          pf::OrthotropicElasticParameters, # Fiber is Trans. Iso.
+                          pf::TransverseIsotropicElasticParameters,
                           cte_m::ThermalExpansion, 
                           cte_f::ThermalExpansion, 
                           vf::Real, 

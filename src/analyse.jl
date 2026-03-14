@@ -118,12 +118,6 @@ function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
 end
 
 
-
-
-
-
-
-
 """
 estimate_as_molded_ar(L_initial_mm, diameter_um, vf, processing_severity)
 
@@ -147,45 +141,3 @@ function estimate_as_molded_ar(L_initial_mm, diameter_um, vf, severity=0.5)
     return L_final / diameter_um
 end
 
-# #### MULTI FIBER
-# """
-# compute_hybrid_sfrp(matrix_props, fiber_list, a11, a22)
-# 'fiber_list' is an array of dicts: [vf, E, nu, AR]
-# """
-# function compute_hybrid_sfrp(E_m, nu_m, fibers::Vector{AbstractElasticParameters}, A::OrientationTensor)
-#     Cm = isotropic_stiffness(E_m, nu_m)
-#     I6 = @SMatrix Matrix{Float64}(I, 6, 6)
-    
-#     # 1. Calculate Dilute Tensors for each fiber species
-#     A_dil_list = []
-#     v_total = 0.0
-    
-#     for f in fibers
-#         Cf_i = stiffness_matrix_voigt(f)
-#         S_i = eshelby_tensor_spheroid(nu_m, f[:AR])
-        
-        
-#         Adil_i = inv(I6 + S_i * (inv(Cm) * (Cf_i - Cm)))
-        
-#         push!(A_dil_list, Adil_i)
-#         v_total += f[:vf]
-#     end
-    
-#     # 2. Calculate the common denominator for Mori-Tanaka
-#     # Denom = (1 - V_total)I + sum(V_j * Adil_j)
-#     sum_vA = zeros(6, 6)
-#     for (i, f) in enumerate(fibers)
-#         sum_vA += f[:vf] * A_dil_list[i]
-#     end
-#     MT_denom = inv((1.0 - v_total) * I6 + sum_vA)
-    
-#     # 3. Sum up the contributions to the Aligned Stiffness
-#     C_aligned = Cm
-#     for (i, f) in enumerate(fibers)
-#         Cf_i = isotropic_stiffness(f[:E], f[:nu])
-#         A_MT_i = A_dil_list[i] * MT_denom
-#         C_aligned += f[:vf] * (Cf_i - Cm) * A_MT_i
-#     end
-
-#     return C_aligned
-# end

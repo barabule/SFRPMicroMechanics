@@ -19,13 +19,6 @@ function start_gui(;
     BOTTOM_BAR = GridLayout(tellwidth = false, width = BAR_WIDTH)
     fig.layout[2,1] = BOTTOM_BAR
 
-#     struct ORS  <: AbstractOrthotropicClosure end
-# struct ORF  <: AbstractOrthotropicClosure end
-# struct ORL  <: AbstractOrthotropicClosure end
-# struct ORW  <: AbstractOrthotropicClosure end
-# struct ORW3 <: AbstractOrthotropicClosure end
-# struct ORFM <: AbstractOrthotropicClosure end
-
 
     closure_menu = Menu(fig, options=[("Linear", S.LinearClosure), 
                                       ("Quadratic", S.QuadraticClosure),
