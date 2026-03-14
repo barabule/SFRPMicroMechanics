@@ -302,8 +302,6 @@ function halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu_f12, Em, nu_m
     G12_UD = G31_UD = Gm * (1 + ζ3 * η3 * vf) / (1 - η3 * vf)
 
     # 5. Transverse Shear Modulus (G23)
-    # CRITICAL: Use Gf23 here
-    # ζ4 is often simplified to 1 or calculated via matrix properties as you did
     ζ4 = (1 + nu_m) / (3 - nu_m - 4 * nu_m^2)
     η4 = (Gf23 / Gm - 1) / (Gf23 / Gm + ζ4)
     G23_UD = Gm * (1 + ζ4 * η4 * vf) / (1 - η4 * vf)
@@ -320,36 +318,16 @@ function halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu_f12, Em, nu_m
                                          G12 = G12_UD, 
                                          G23 = G23_UD, 
                                          G31 = G31_UD, 
-                                         nu21 = nu21_UD, 
+                                         nu12 = nu12_UD, 
                                          nu31 = nu31_UD, 
                                          nu23 = nu23_UD)
 
 
     return stiffness_matrix_voigt(peff; mandel)
-
-    # # 7. Compliance Matrix
-    # S11_UD = 1 / E11_UD
-    # S22_UD = 1 / E22_UD
-    # S33_UD = 1 / E33_UD
-    # S12_UD = -nu12_UD / E11_UD
-    # S13_UD = -nu31_UD / E33_UD
-    # S23_UD = -nu23_UD / E22_UD
-    # S44_UD = 1 / G23_UD
-    # S55_UD = 1 / G31_UD
-    # S66_UD = 1 / G12_UD
-
-    # S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0       0      0;
-    #                  S12_UD  S22_UD  S23_UD  0       0      0;
-    #                  S13_UD  S23_UD  S33_UD  0       0      0;
-    #                    0       0       0    S44_UD   0      0;
-    #                    0       0       0      0    S55_UD   0;
-    #                    0       0       0      0      0    S66_UD]  
-    
-    # return inv(S_UD)
 end
 
 
-function halpin_tsai(pm::IsotropicElasticParameters, pf::OrthotropicElasticParameters, vf, ar)
+function halpin_tsai(pm::IsotropicElasticParameters, pf::TransverseIsotropicElasticParameters, vf, ar)
     Em, nu_m = pm.E_modulus, pm.nu
     Ef1, Ef2, Gf12, Gf23, nu21_f = pf.E1, pf.E2, pf.G12, pf.G23, pf.nu21 
     nu12_f = nu21_f * Ef1 / Ef2

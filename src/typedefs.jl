@@ -37,21 +37,143 @@ struct OrthotropicElasticParameters{T<:Real}<:AbstractElasticParameters
 end
 
 
-function Base.show(io::IO, ::MIME"text/plain", p::T) where T<:AbstractElasticParameters
+struct TransverseIsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
+    E1::T
+    E2::T
+    G12::T
+    G23::T
+    nu21::T
+end
+
+function stiffness_matrix_voigt(p::TransverseIsotropicElasticParameters; mandel = false)
+    return stiffness_matrix_voigt(OrthotropicElasticParameters(p); mandel)    
+end
+
+function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
+    
+    E1 = p.E1
+    E2 = E3 = p.E2
+    
+    G31 = p.G12
+    G23 = p.G23
+    G12 = p.G12
+    
+    nu21 = nu31 = p.nu21
+    nu23 = 2G23 / E3 - 1
+
+    return OrthotropicElasticParameters(;E1, E2, E3, G12, G23, G31, nu21, nu31, nu23)
+end
+
+
+function OrthotropicElasticParameters(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
+    G = E/(2(1+nu))
+    return OrthotropicElasticParameters(;E1 = E,
+                                         E2 = E,
+                                         E3 = E,
+                                         G12 = G,
+                                         G23 = G,
+                                         G31 = G,
+                                         nu21 = nu,
+                                         nu31 = nu,
+                                         nu23 = nu)
+end
+
+
+function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicElasticParameters)
+    println(io, "Elastic Constants:")
+    # for field in fieldnames(T)
+    #     value = getfield(p, field)
+    #     println(io, "  $field = $value")
+    # end
+    println(io, "E1 = $(p.E1)")
+    println(io, "E2 = $(p.E2)")
+    println(io, "E3 = $(p.E3)")
+
+    println(io, "G12 = $(p.G12)")
+    println(io, "G31 = $(p.G31)")
+    println(io, "G23 = $(p.G23)")
+
+
+    nu12 = p.nu21 * p.E1 / p.E2
+    nu13 = p.nu31 * p.E1 / p.E3
+    nu23 = p.nu32 * p.E2 / p.E3
+
+    println(io, "ν21 = $(p.nu21)")
+    println(io, "ν31 = $(p.nu31)")
+    println(io, "ν23 = $(nu23)")
+    println(io, "ν12 = $(nu12)")
+    println(io, "ν13 = $(nu13)")
+    println(io, "ν32 = $(p.nu32)")
+
+end
+
+function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticParameters)
+    println(io, "Elastic Constants:")
+    
+    println(io, "E1 = $(p.E1)")
+    println(io, "E2 = $(p.E2)")
+    println(io, "E3 = $(p.E2)")
+
+    println(io, "G12 = $(p.G12)")
+    println(io, "G31 = $(p.G12)")
+    println(io, "G23 = $(p.G23)")
+
+    
+    nu12 = p.nu21 * p.E1 / p.E2
+    nu13 = nu12
+    nu23 = 2p.G23 / p.E2 - 1
+    nu32 = nu23
+
+    println(io, "ν21 = $(p.nu21)")
+    println(io, "ν31 = $(p.nu21)")
+    println(io, "ν23 = $(nu23)")
+    println(io, "ν12 = $(nu12)")
+    println(io, "ν13 = $(nu13)")
+    println(io, "ν32 = $(nu32)")
+end
+
+function Base.show(io::IO, ::MIME"text/plain", p::IsotropicElasticParameters)
     println(io, "Elastic Constants:")
     for field in fieldnames(T)
         value = getfield(p, field)
         println(io, "  $field = $value")
     end
-    if isa(p, OrthotropicElasticParameters)
-        nu12 = p.nu21 * p.E1 / p.E2
-        nu13 = p.nu31 * p.E1 / p.E3
-        nu23 = p.nu32 * p.E2 / p.E3
-        println("  nu12 = $nu12")
-        println("  nu13 = $nu13")
-        println("  nu23 = $nu23")
-    end
 end
+
+
+function Base.isapprox(p1::IsotropicElasticParameters, p2::IsotropicElasticParameters; kwargs...)
+    return isapprox(p1.E_modulus, p2.E_modulus; kwargs...) &&
+           isapprox(p1.nu, p2.nu; kwargs...)
+end
+
+
+function Base.isapprox(p1::OrthotropicElasticParameters, p2::OrthotropicElasticParameters; kwargs...)
+    return isapprox(p1.E1, p2.E1; kwargs...) &&
+           isapprox(p1.E2, p2.E2; kwargs...) &&
+           isapprox(p1.E3, p2.E3; kwargs...) &&
+           isapprox(p1.G12, p2.G12; kwargs...) &&
+           isapprox(p1.G23, p2.G23; kwargs...) &&
+           isapprox(p1.G31, p2.G31; kwargs...) &&
+           isapprox(p1.nu21, p2.nu21; kwargs...) &&
+           isapprox(p1.nu32, p2.nu32; kwargs...) &&
+           isapprox(p1.nu31, p2.nu31; kwargs...) 
+
+end
+
+function Base.isapprox(p1::TransverseIsotropicElasticParameters, p2::TransverseIsotropicElasticParameters; kwargs...)
+    return isapprox(p1.E1, p2.E1; kwargs...) &&
+           isapprox(p1.E2, p2.E2; kwargs...) &&
+           isapprox(p1.G12, p2.G12; kwargs...) &&
+           isapprox(p1.G23, p2.G23; kwargs...) &&
+           isapprox(p1.nu21, p2.nu21; kwargs...)
+end
+
+function Base.isapprox(p1::OrthotropicElasticParameters, p2::AbstractElasticParameters; kwargs...) 
+    return isapprox(p1, OrthotropicElasticParameters(p2);kwargs...)
+end
+
+Base.isapprox(p1::AbstractElasticParameters, p2::OrthotropicElasticParameters; kwargs...) = isapprox(p2,p1;kwargs...)
 
 function OrthotropicElasticParameters(;E1 = nothing,
                                        E2 = nothing,

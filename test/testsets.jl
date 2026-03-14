@@ -70,6 +70,7 @@ end
     @test SFRPMicroMechanics.is_structurally_isotropic(C) #dooh
 
     ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
+    @test p ≈ ct
     @test ct.E1 ≈ ct.E2 ≈ ct.E3 ≈ E
     @test ct.nu21  ≈ ct.nu32 ≈ ct.nu31 ≈ nu
     @test ct.G12 ≈ ct.G23 ≈ ct.G31 ≈ E/ (2 * (1 + nu))
@@ -86,15 +87,8 @@ end
 
     ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
 
-    @test ct.E1 ≈ E1
-    @test ct.E2 ≈ E2
-    @test ct.E3 ≈ E3
-    @test ct.nu21 ≈ nu21
-    @test ct.nu32 ≈ nu32
-    @test ct.nu31 ≈ nu31
-    @test ct.G12 ≈ G12
-    @test ct.G23 ≈ G23
-    @test ct.G31 ≈ G31
+    @test isapprox(p, ct; atol = 1e-8)
+    
 
 end
 
@@ -187,16 +181,8 @@ end
     for mandel in (true, false)
         Cm = SFRPMicroMechanics.stiffness_matrix_voigt(p; mandel)
         pex = SFRPMicroMechanics.extract_orthotropic_constants(Cm; mandel)
-
-        @test p.E1 ≈ pex.E1
-        @test p.E2 ≈ pex.E2
-        @test p.E3 ≈ pex.E3
-        @test p.G12 ≈ pex.G12
-        @test p.G23 ≈ pex.G23
-        @test p.G31 ≈ pex.G31
-        @test p.nu21 ≈ pex.nu21
-        @test p.nu31 ≈ pex.nu31
-        @test p.nu32 ≈ pex.nu32
+        @test p ≈ pex
+       
     end
 end
 
@@ -230,9 +216,7 @@ end
                 28688.524590163935
 ]
 @test all(isapprox.(bs, bs_ref, atol=1e-6))
-    # for (b, b_ref) in zip(bs, bs_ref)
-    #     @test b ≈ b_ref atol=1e-6
-    # end
+    
 end
     
 @testset "Spherical Inclusion Limit" verbose = true begin
@@ -443,16 +427,25 @@ end
         by Ahmad Al-Qudsi, Hakan Celik, Jonas Neuhaus, Christian Hopmann
 
     """
+    S = SFRPMicroMechanics
+
+
     Ef = 72.6
-    Em = 1.5
     nu_f = 0.25
+    pf = S.IsotropicElasticParameters(Ef, nu_f)
+
+    Em = 1.5
     nu_m = 0.39
+    pm = S.IsotropicElasticParameters(Em ,nu_m)
+    
     ar = 50
     vf = 0.1
-    (Cht, constants) = SFRPMicroMechanics.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar)
+    mandel = true
     
+    # Cht = S.halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel)
+    Cht = S.halpin_tsai(pm, pf, vf, ar; mandel)
     # display(constants)
-    B = SFRPMicroMechanics.orientation_averaging_coefficients(Cht; mandel = false)
+    B = S.orientation_averaging_coefficients(Cht; mandel)
     Bref = (4680.46e-3, -18.18e-3, 16.97e-3, 2006.85e-3, 637.66e-3)
 
     for i in 1:5
@@ -461,17 +454,28 @@ end
 
     end
 
-    el_const2 = SFRPMicroMechanics.extract_orthotropic_constants(Cht)
+    el_const2 = S.extract_orthotropic_constants(Cht)
     # display(el_const2)
     
     (a1, a2, a3, a4, a5, a6) = (0.7171, 0.2389, 0.0439, -0.0043, 0.0068, -0.0165)
 
-    N2 =SFRPMicroMechanics.SMatrix{3,3}([a1 a6 a5;
+    N2 =S.SMatrix{3,3}([a1 a6 a5;
                                         a6 a2 a4;
                                         a5 a4 a3])
 
-    N4 = SFRPMicroMechanics.convert_3333_to_66(
-                            SFRPMicroMechanics.HL2_closure(N2);mandel=true)
+    N4 = S.convert_3333_to_66(
+                            S.HL2_closure(N2);mandel=true)
+    
+    
+    ## isotropic == transverse with isotropic props
+    G12 = Ef / (2(1 + nu_f))
+    # G23 = G12
+    pf_trans =  S.TransverseIsotropicElasticParameters(Ef, Ef, G12, G12, nu_f)
+    Cht_trans = S.halpin_tsai(pm, pf, vf, ar; mandel)  
+
+    el_const_trans = S.extract_orthotropic_constants(Cht_trans)
+    @test isapprox(el_const2, el_const_trans; atol =1e-8)
+    
     # display(N4)
 
     # A11 = 0.6
