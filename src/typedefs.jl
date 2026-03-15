@@ -59,7 +59,7 @@ function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
     G12 = p.G12
     
     nu21 = nu31 = p.nu21
-    nu23 = 2G23 / E3 - 1
+    nu23 = E2 / (2G23) - 1
 
     return OrthotropicElasticParameters(;E1, E2, E3, G12, G23, G31, nu21, nu31, nu23)
 end
@@ -122,7 +122,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticPara
     
     nu12 = p.nu21 * p.E1 / p.E2
     nu13 = nu12
-    nu23 = 2p.G23 / p.E2 - 1
+    nu23 = p.E2 / (2p.G23) - 1
     nu32 = nu23
 
     println(io, "ν21 = $(p.nu21)")
@@ -212,6 +212,72 @@ function OrthotropicElasticParameters(;E1 = nothing,
 
     return OrthotropicElasticParameters(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
 end
+
+
+function TransverseIsotropicElasticParameters(;E1 = nothing,
+                                               E2 = nothing,
+                                               E3 = nothing,
+                                               G12 = nothing,
+                                               G23 = nothing,
+                                               G31 = nothing,
+                                               nu12 = nothing,
+                                               nu21 = nothing,
+                                               nu23 = nothing,
+                                               nu32 = nothing,
+                                               nu13 = nothing,
+                                               nu31 = nothing)
+
+    #we need only 5 constants but these have to describe the complete stiffness
+    #longitudinal and transversal modulus
+    @assert !isnothing(E1) "E1 must be given!"
+    @assert !isnothing(E2) || !isnothing(E3) "Either E2 or E3 must be given"
+    if isnothing(E2)
+        E2 = E3
+    end
+
+    @assert !isnothing(G12) || !isnothing(G31) "Either G12 or G31 must be given!"
+    if isnothing(G12)
+        G12 = G31
+    end
+    
+    @assert !isnothing(G23) || !isnothing(nu23) || !isnothing(nu32) "Either G23 or nu23 or nu32 must be given!"
+
+    #in plane shear = isotropic
+    if !isnothing(nu23)
+        G23 = E2 / (2(1 + nu23))
+    elseif !isnothing(nu32)
+        G23 = E2 / (2(1 + nu32))
+    end
+
+    #LT plane 
+    @assert !isnothing(nu12) || 
+            !isnothing(nu21) || 
+            !isnothing(nu13) || 
+            !isnothing(nu31) "One of nu12, nu21, nu13 or nu31 must be given!"
+    if !isnothing(nu12)
+        nu21 = nu31 = nu12 * E2 / E1
+    elseif !isnothing(nu13)
+        nu21 = nu13 * E2 / E1
+    elseif !isnothing(nu31)
+        nu21 = nu31
+    end
+
+
+    nu12 = nu13 = nu21 * E1 / E2
+    nu31 = nu21
+
+    nu23 = nu32 = E2/(2G23) - 1
+    Δ = 1 - nu12*nu21 - nu23*nu32 - nu31*nu13 - 2*nu21*nu32*nu13
+    # --- Stability Guards ---
+    if Δ < 0
+        error("Material is physically unstable (Δ = $Δ). Positive definiteness violated. Check Poisson's ratios.")
+    elseif Δ < 1e-6
+        @warn "Material is near a stability limit (Δ = $Δ). Results may be numerically sensitive."
+    end
+    return TransverseIsotropicElasticParameters(E1, E2, G12, G23, nu21)
+end
+
+
 
 function stiffness_matrix_voigt(p::IsotropicElasticParameters; mandel = false)
     E, nu = p.E_modulus, p.nu

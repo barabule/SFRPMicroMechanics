@@ -186,6 +186,47 @@ end
     end
 end
 
+@testset "Transverse Properties" verbose = true begin
+
+    S = SFRPMicroMechanics
+
+    E1 = 230.0
+    E2 = 25.0
+    E3 = E2
+
+    G12 = 50.0
+    G31 = G12
+    nu21 = nu31 = 0.03
+    nu23 = nu32 = 0.39
+    nu12 = nu13 = nu21 * E1 / E2
+    G23 = E2 / (2(1+nu23))
+
+    #these should be all the same 
+    p1 = S.OrthotropicElasticParameters(;E1, E2, E3, G12, G23, G31, nu12, nu13, nu23)
+    pt = S.TransverseIsotropicElasticParameters(;E1, E2, G12, nu23, nu13)
+    pt2 = S.TransverseIsotropicElasticParameters(;E1, E3, G31, G23, nu12)
+    pt3 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, G23, nu31)
+    pt4 = S.TransverseIsotropicElasticParameters(;E1, E3, G31, nu21, nu32)
+    pt5 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, nu21, nu23) #ls-dyna mat215
+    pt6 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, G23, nu12) #python homopy
+    # @info "p1"
+    # display(p1)
+    # @info "pt"
+    # display(pt)
+    # @info "pt2"
+    # display(pt2)
+    # @info "pt3"
+    # display(pt3)
+    # @info "pt4"
+    # display(pt4)
+    @test isapprox(p1, pt)
+    @test isapprox(p1, pt2)
+    @test isapprox(p1, pt3)
+    @test isapprox(p1, pt4)
+    @test isapprox(p1, pt5)
+    @test isapprox(p1, pt6)
+end
+
 @testset "Orientation Averaging" verbose = true begin
     S = SFRPMicroMechanics
     ar = 1.0
