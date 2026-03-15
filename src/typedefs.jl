@@ -306,10 +306,10 @@ function isotropic_stiffness(E, nu; mandel = false)
 end
 
 
-function stiffness_tensor(p::IsotropicElasticParameters{T}; mandel = false) where T
+# function stiffness_tensor(p::IsotropicElasticParameters{T}; mandel = false) where T
     
-    return mandel ? frommandel(stiffness_matrix_voigt(p;mandel)) : fromvoigt(stiffness_matrix_voigt(p;mandel))
-end
+#     return mandel ? frommandel(stiffness_matrix_voigt(p;mandel)) : fromvoigt(stiffness_matrix_voigt(p;mandel))
+# end
 
 
 function is_structurally_isotropic(C66::AbstractMatrix)

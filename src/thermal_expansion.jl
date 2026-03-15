@@ -39,39 +39,39 @@ function ThermalExpansion(v6::AbstractVector)
 end
 
 
-function ThermalExpansion(matrix_properties, fiber_properties)
-    """
-    matrix = (;stiffness = Cm, 
-                thermal_expansion = αm)
-    fiber_properties = (;stiffness = [Cfi],
-                        thermal_expansion = [αfi],
-                        eshelby_tensors = [Sfi],
-                        volume_fractions = [vfi])
-    """
+# function ThermalExpansion(matrix_properties, fiber_properties)
+#     """
+#     matrix = (;stiffness = Cm, 
+#                 thermal_expansion = αm)
+#     fiber_properties = (;stiffness = [Cfi],
+#                         thermal_expansion = [αfi],
+#                         eshelby_tensors = [Sfi],
+#                         volume_fractions = [vfi])
+#     """
 
 
-    Cm = matrix_properties.stiffness
-    αm = matrix_properties.thermal_expansion |> to_voigt
+#     Cm = matrix_properties.stiffness
+#     αm = matrix_properties.thermal_expansion |> to_voigt
 
-    vf = fiber_properties.volume_fractions
-    Sf = fiber_properties.eshelby_tensors
-    Cf = fiber_properties.stiffness
-    αf = fiber_properties.thermal_expansion
+#     vf = fiber_properties.volume_fractions
+#     Sf = fiber_properties.eshelby_tensors
+#     Cf = fiber_properties.stiffness
+#     αf = fiber_properties.thermal_expansion
 
-    I6 = SMatrix{6,6}(LinearAlgebra.I)
+#     I6 = SMatrix{6,6}(LinearAlgebra.I)
 
-    term = sum((vf[i] * (Sf[i] - I6) for i in eachindex(vf)))
+#     term = sum((vf[i] * (Sf[i] - I6) for i in eachindex(vf)))
     
-    αeff = MVector{6}(αm)
-    for i in eachindex(vf)
-        ΔC = Cf[i] - Cm
-        αfi = to_voigt(αf[i])
-        Δα = αfi - αm
-        αeff .+= inv(ΔC * (Sf[i] - term) + Cm) * Cf[i] * Δα
+#     αeff = MVector{6}(αm)
+#     for i in eachindex(vf)
+#         ΔC = Cf[i] - Cm
+#         αfi = to_voigt(αf[i])
+#         Δα = αfi - αm
+#         αeff .+= inv(ΔC * (Sf[i] - term) + Cm) * Cf[i] * Δα
 
-    end
-    return ThermalExpansion(αeff)
-end
+#     end
+#     return ThermalExpansion(αeff)
+# end
 
 
 function ThermalExpansion(pm::IsotropicElasticParameters, 
@@ -81,7 +81,8 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
                           vf::Real, 
                           AR::Real, 
                           a::OrientationTensor,
-                          shape::InclusionGeometry)
+                          shape::InclusionGeometry;
+                          mandel = false)
                           
     Em, num = pm.E_modulus, pm.nu
     Ef, nuf = pf.E_modulus, pf.nu
@@ -92,8 +93,8 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
     a11, a22 = a.a11, a.a22
 
     # 1. Setup Stiffness
-    Cm = isotropic_stiffness(Em, num)
-    Cf = isotropic_stiffness(Ef, nuf)
+    Cm = stiffness_matrix_voigt(pm; mandel)
+    Cf = stiffness_matrix_voigt(pf; mandel)
     
     I6 = SMatrix{6, 6}(LinearAlgebra.I)
 
@@ -277,3 +278,53 @@ function effective_thermal_expansion_chow(pm::IsotropicElasticParameters,
 
     return ThermalExpansion(α11, α22, α33)
 end
+
+
+# function compute_thermal_MT(pm::IsotropicElasticParameters, 
+#                             pfs::Vector{Union{IsotropicElasticParameters, TransverseIsotropicElasticParameters}}, 
+#                             cte_m::ThermalExpansion, 
+#                             cte_f::Vector{ThermalExpansion}, 
+#                             vfs::Vector{Real}, 
+#                             ARs::Vector{Real}, 
+#                             shapes::Vector{InclusionGeometry}; 
+#                             mandel = true)
+
+#     num = pm.nu
+#     Cm = stiffness_matrix_voigt(pm; mandel)
+#     Cfs = [stiffness_matrix_voigt(pf;mandel) for pf in pfs] #stiffness fibers
+
+#     Sps = [eshelby_tensor(shapes[i], num, ARs[i]) for i in eachindex(shapes)]
+
+#     I6 = @SMatrix LinearAlgebra.I
+#     Qps = [Cm * (I - Sp) for Sp in Sps] #compliance contribution tensor
+
+
+#     Sfs = [inv(Cf) for Cf in Cfs] #compliance fibers
+#     Sm = inv(Cm) #compliance matrix
+
+#     vm = 1 - sum(vfs)
+
+#     H_NIs = [vfs[i] * inv((Sfs[i] - Sm) + Qps[i]) for i in eachindex(vfs)]
+
+#     ΣSfpHNI = @SMatrix zeros(6,6)
+#     for p in eachindex(pfs)
+#         ΣSfpHNI += inv(Sfs[p] - Sm) * H_NIs[p]
+#     end
+
+
+#     H_MT = @SMatrix zeros(6,6)
+
+#     for p in eachindex(pfs)
+#         H_MT += H_NIs[p] * inv(ΣSfpHNI + vm * I6)
+#     end
+
+#     αm = to_voigt(cte_m)
+#     αfs = [to_voigt(cte) for cte in cte_f]
+
+#     α_eff = αm
+
+#     for p in eachindex(pfs)
+#         α_eff += H
+#     end
+
+# end
