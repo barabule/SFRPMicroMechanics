@@ -28,30 +28,17 @@ function convert_66_to_3333(C66; mandel = false)
         (5, 4, 3)
     )
 
+    T = eltype(C66)
     # Helper to get the scaling factor based on notation
     function get_scale(α, mandel)
-        if !mandel
-            return 1.0 # Standard Voigt: scaling handled elsewhere or not needed depending on C vs S
+        !mandel && return one(T)
+        if α > 3 
+            return T(1/sqrt(2))
         end
-        # Mandel scaling: factors of sqrt(2) for indices 4, 5, 6
-        s = 1.0
-        if α > 3; s *= 1/sqrt(2); end
-        return s
+        return one(T)
     end
 
-    # Construct the 3x3x3x3 tensor
-    # If mandel=true, we divide the C66 components by sqrt(2) for each shear index
-    # C4 = @SArray [
-    #     begin
-    #         α = lookup[i][j]
-    #         β = lookup[k][l]
-    #         val = C66[α, β]
-    #         mandel ? val * get_scale(α, mandel) * get_scale(β, mandel) : val
-    #     end
-    #     for i=1:3, j=1:3, k=1:3, l=1:3
-    # ]
-    
-    # return C4
+
     return SymmetricTensor{4,3}(
         (i, j, k, l) -> begin
                 α = lookup[i][j]

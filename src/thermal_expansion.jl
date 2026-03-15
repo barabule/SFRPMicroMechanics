@@ -222,7 +222,7 @@ function effective_thermal_expansion(pm::IsotropicElasticParameters,
     T = eltype(Cm)
     ϕf = [f.volume_fraction for f in fibers]
     Cf = [stiffness_matrix_voigt(f.elastic_properties; mandel) for f in fibers]
-    Sf = [tomandel(eshelby_tensor(f.shape, νm, f.aspect_ratio)) for f in fibers]
+    Sf = [convert_3333_to_66(SMatrix, eshelby_tensor(f.shape, νm, f.aspect_ratio);mandel) for f in fibers]
 
 
     ΣϕfSI = SMatrix{6,6}(zeros(T, 6,6))
@@ -244,7 +244,7 @@ function effective_thermal_expansion_chow(pm::IsotropicElasticParameters,
 
     νm = pm.nu
     Em = pm.E_modulus
-    Gm = Em/(2 * (1+νm))
+    Gm = Em / (2 * (1 + νm))
     Km = Em / (3 * (1- 2νm))
     pf = fiber.elastic_properties
     νf = pf.nu
