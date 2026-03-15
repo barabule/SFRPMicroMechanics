@@ -13,7 +13,8 @@ function start_gui(;
             )
 
     fig = Figure()
-    ax = PolarAxis(fig[1,1])
+    ax = Axis(fig[1,1], xlabel = "Direction [°]", ylabel = "E Modulus [GPa]",
+                limits= (nothing, nothing, 0, nothing))
     
     
     BOTTOM_BAR = GridLayout(tellwidth = false, width = BAR_WIDTH)
@@ -35,6 +36,7 @@ function start_gui(;
     matrix_sliders = SliderGrid(fig,
             (label = "Eₘ [GPa]", range = (0.5:0.1:5.0), startvalue = 3.0),
             (label = "νₘ", range=  (0.01:0.01:0.49), startvalue  =0.3),
+            (label = "αₘ", range = (10:1:200), startvalue = 80),
             width = BAR_WIDTH/2
             )
 
@@ -48,6 +50,9 @@ function start_gui(;
     averaging_method = lift(USE_MT_Toggle.active) do val 
         val ? "Mori Tanaka" : "Halpin Tsai"
     end
+
+    
+
 
     BOTTOM_BAR[1,1] = vgrid!(
         hgrid!(USE_MT_Toggle, Label(fig, averaging_method)),
@@ -70,6 +75,7 @@ function start_gui(;
     fiber_isotropic_sliders = SliderGrid(fig,
             (label = "E [GPa]", range = (1.0:0.5:500.0), format = "{:.1f}", startvalue = 70.0),
             (label = "nu", range = (0.01:0.01:0.49), format = "{:.2f}", startvalue = 0.22),
+            (label = "αf", range = (-5:1:50), startvalue = 5),
             (label = "fract", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
             (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
             width = BAR_WIDTH/2,
@@ -85,6 +91,9 @@ function start_gui(;
             (label = "ν₂₁", range = (0.01:0.01:0.2), format = "{:.2f}", startvalue = 0.03),
             (label = "ν₃₂", range = (0.2:0.01:0.49), format = "{:.2f}", startvalue = 0.39),
             (label = "G₁₂ [GPa]", range = (1.0:0.5:200.0), format = "{:.1f}", startvalue = 50.0),
+            (label = "α₁", range = (-5:1:50), startvalue = 5),
+            (label = "α₂", range = (-5:1:50), startvalue = 5),
+            (label = "α₃", range = (-5:1:50), startvalue = 5),
             (label = "vol_f", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
             (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
             width = BAR_WIDTH/2,
@@ -121,7 +130,8 @@ function start_gui(;
 
     BOTTOM_RIGHT_BAR[3,1] = hgrid!(Label(fig, "Inclusion geometry"), inclusion_menu)
         
-
+    cte_matrix = @lift S.ThermalExpansion($(matrix_observables[3])* 1e-6)
+    cte_fiber  = Observable(S.ThermalExpansion( 5e-6))
 
     on(cb_isotropic.checked) do val
         # isotropic = val || USE_MT_Toggle.active[] 
@@ -140,7 +150,7 @@ function start_gui(;
 
 
 
-    angles = LinRange(0, 360, N)
+    angles = LinRange(0, 90, N)
     phi = deg2rad.(angles)
     
 
@@ -149,11 +159,13 @@ function start_gui(;
     onany(fiber_iso_observables...) do vals...
         Ef = vals[1]
         nuf = vals[2]
-        vf = vals[3]
-        ar = vals[4]
+        alfa_m = vals[3]
+        vf = vals[4]
+        ar = vals[5]
         vol_frac[] = vf
         aspect_ratio[] = ar
         fiber_elastic_props[] = S.IsotropicElasticParameters(Ef, nuf)
+        cte_fiber[] = S.ThermalExpansion(alfa_m * 1e-6)
     end
 
     onany(fiber_trans_observables...) do vals...
@@ -162,14 +174,18 @@ function start_gui(;
         nu21 = vals[3]
         nu23 = vals[4]
         G12 = vals[5]
-        vf = vals[6]
-        ar = vals[7]
+        alfa1 = vals[6]
+        alfa2 = vals[7]
+        alfa3 = vals[8]
+        vf = vals[9]
+        ar = vals[10]
         G23 = E2/ (2*(1+nu23))
         G31 = G12
         nu31 = nu21
-        fiber_elastic_props[] = S.OrthotropicElasticParameters(;E1, E2, E3=E2,nu21, nu23, nu31, G12, G23, G31) 
+        fiber_elastic_props[] = S.TransverseIsotropicElasticParameters(;E1, E2, nu21, nu23, nu31, G12) 
         vol_frac[] = vf
         aspect_ratio[] = ar
+        cte_fiber[] = S.ThermalExpansion(alfa1 * 1e-6, alfa2 * 1e-6, alfa3 * 1e-6)
     end
 
     on(orientation_sliders.sliders[1].value) do a11
@@ -199,10 +215,39 @@ function start_gui(;
                                symmetrize = true,
                                mori_tanaka = $(USE_MT_Toggle.active),
                                )
-    lines!(ax, phi, Emods, color = :black)
+    lines!(ax, angles, Emods, color = :black)
+    Em = lift(matrix_properties) do pm
+        pm.E_modulus
+    end
+    # hlines!(ax, [Em], color = :black, linestyle = :dash)
+    
+    cte_eff = @lift compute_effective_thermal_expansion($matrix_properties,
+                                                        $fiber_elastic_props,
+                                                        $cte_matrix,
+                                                        $cte_fiber,
+                                                        $vol_frac,
+                                                        $aspect_ratio,
+                                                        $orientation_tensor,
+                                                        $(inclusion_menu.selection),
+                                                        )
+
+
 
 
     set_close_to!(matrix_sliders.sliders[1], 3.0)
+
+    stats_text = @lift stats_to_text($cte_eff)
+    text!(
+        ax,
+        Point2f(10, 50), # 2D position in pixels
+        text = stats_text,
+        fontsize = 16,
+        color = :black,
+        space = :pixel, # Renders text in screen space
+        # align = (:right, :top),
+        # clip = false,
+    )
+
 
     fig
 end
@@ -246,5 +291,28 @@ function compute_emod(pm::S.IsotropicElasticParameters,
     return [S.apparent_modulus(pavg, ang) for ang in angles]
 
 end
+
+function compute_effective_thermal_expansion(pm::S.IsotropicElasticParameters, 
+                                             pf::S.AbstractElasticParameters, 
+                                             cte_m::S.ThermalExpansion,
+                                             cte_f::S.ThermalExpansion,
+                                             volume_fraction,
+                                             aspect_ratio,
+                                             a2::S.OrientationTensor,
+                                             inclusion::S.InclusionGeometry,
+                                             )
+    # fibers = S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f,volume_fraction, aspect_ratio, a2, inclusion)
+    return cte_eff
+end
+
+
+function stats_to_text(cte_eff)
+    alpha1, alpha2, alpha3 = round.((cte_eff.alpha1 *1e6, cte_eff.alpha2 *1e6, cte_eff.alpha3 *1e6), digits= 1)
+
+    return "Effective CTE:\n$alpha1 x1e-6/°C\n$alpha2 x1e-6/°C\n$alpha3 x1e-6/°C\n"
+
+end
+
 
 end #module
