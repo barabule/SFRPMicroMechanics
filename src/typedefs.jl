@@ -86,38 +86,38 @@ function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicElasticParameters)
     #     value = getfield(p, field)
     #     println(io, "  $field = $value")
     # end
-    println(io, "E1 = $(p.E1)")
-    println(io, "E2 = $(p.E2)")
-    println(io, "E3 = $(p.E3)")
+    println(io, "E1 = $(round(p.E1, sigdigits = 4))")
+    println(io, "E2 = $(round(p.E2, sigdigits = 4))")
+    println(io, "E3 = $(round(p.E3, sigdigits = 4))")
 
-    println(io, "G12 = $(p.G12)")
-    println(io, "G31 = $(p.G31)")
-    println(io, "G23 = $(p.G23)")
+    println(io, "G12 = $(round(p.G12, sigdigits = 4))")
+    println(io, "G31 = $(round(p.G31, sigdigits = 4))")
+    println(io, "G23 = $(round(p.G23, sigdigits = 4))")
 
 
     nu12 = p.nu21 * p.E1 / p.E2
     nu13 = p.nu31 * p.E1 / p.E3
     nu23 = p.nu32 * p.E2 / p.E3
 
-    println(io, "ν21 = $(p.nu21)")
-    println(io, "ν31 = $(p.nu31)")
-    println(io, "ν23 = $(nu23)")
-    println(io, "ν12 = $(nu12)")
-    println(io, "ν13 = $(nu13)")
-    println(io, "ν32 = $(p.nu32)")
+    println(io, "ν21 = $(round(p.nu21, sigdigits = 4))")
+    println(io, "ν31 = $(round(p.nu31, sigdigits = 4))")
+    println(io, "ν23 = $(round(nu23, sigdigits = 4))")
+    println(io, "ν12 = $(round(nu12, sigdigits = 4))")
+    println(io, "ν13 = $(round(nu13, sigdigits = 4))")
+    println(io, "ν32 = $(round(p.nu32, sigdigits = 4))")
 
 end
 
 function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticParameters)
     println(io, "Elastic Constants:")
     
-    println(io, "E1 = $(p.E1)")
-    println(io, "E2 = $(p.E2)")
-    println(io, "E3 = $(p.E2)")
+    println(io, "E1 = $(round(p.E1, sigdigits = 4))")
+    println(io, "E2 = $(round(p.E2, sigdigits = 4))")
+    println(io, "E3 = $(round(p.E2, sigdigits = 4))")
 
-    println(io, "G12 = $(p.G12)")
-    println(io, "G31 = $(p.G12)")
-    println(io, "G23 = $(p.G23)")
+    println(io, "G12 = $(round(p.G12, sigdigits = 4))")
+    println(io, "G31 = $(round(p.G12, sigdigits = 4))")
+    println(io, "G23 = $(round(p.G23, sigdigits = 4))")
 
     
     nu12 = p.nu21 * p.E1 / p.E2
@@ -125,19 +125,19 @@ function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticPara
     nu23 = p.E2 / (2p.G23) - 1
     nu32 = nu23
 
-    println(io, "ν21 = $(p.nu21)")
-    println(io, "ν31 = $(p.nu21)")
-    println(io, "ν23 = $(nu23)")
-    println(io, "ν12 = $(nu12)")
-    println(io, "ν13 = $(nu13)")
-    println(io, "ν32 = $(nu32)")
+    println(io, "ν21 = $(round(p.nu21, sigdigits = 4))")
+    println(io, "ν31 = $(round(p.nu21, sigdigits = 4))")
+    println(io, "ν23 = $(round(nu23, sigdigits = 4))")
+    println(io, "ν12 = $(round(nu12, sigdigits = 4))")
+    println(io, "ν13 = $(round(nu13, sigdigits = 4))")
+    println(io, "ν32 = $(round(p.nu32, sigdigits = 4))")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", p::IsotropicElasticParameters)
     println(io, "Elastic Constants:")
     for field in fieldnames(T)
         value = getfield(p, field)
-        println(io, "  $field = $value")
+        println(io, "  $field = $(round(value, sigdigits =4))")
     end
 end
 

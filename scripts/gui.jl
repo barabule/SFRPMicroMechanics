@@ -10,6 +10,7 @@ function start_gui(;
             N = 360, 
             mandel = true,
             BAR_WIDTH = 600,
+            ref_data = nothing,
             )
 
     fig = Figure()
@@ -201,9 +202,9 @@ function start_gui(;
         orientation_tensor_observables[2][] = set_close_to!(a22_slider, a22)
     end
 
-
     
-    Emods = @lift compute_emod($matrix_properties, 
+    
+    res = @lift compute_emod($matrix_properties, 
                                $fiber_elastic_props, 
                                $vol_frac,
                                $aspect_ratio,
@@ -215,7 +216,21 @@ function start_gui(;
                                symmetrize = true,
                                mori_tanaka = $(USE_MT_Toggle.active),
                                )
-    lines!(ax, angles, Emods, color = :black)
+
+    Emod = @lift $res.moduli
+    lines!(ax, angles, Emod, color = :black)
+
+    if !isnothing(ref_data)
+        angs = ref_data.angles
+        vmin = ref_data.min
+        vmax = ref_data.max
+        mids = @. 1/2 * (vmin + vmax)
+        err = @. 1/2  * (vmax - vmin)
+
+        errorbars!(ax, angs, mids, err, whiskerwidth = 10, color = :red, linewidth = 4)
+    end
+
+
     Em = lift(matrix_properties) do pm
         pm.E_modulus
     end
@@ -236,7 +251,11 @@ function start_gui(;
 
     set_close_to!(matrix_sliders.sliders[1], 3.0)
 
-    stats_text = @lift stats_to_text($cte_eff)
+    # ptext = @lift display($(res.properties))
+    # stats_text = @lift display($res.properties) * stats_to_text($cte_eff)
+    stats_text = @lift sprint(show,"text/plain", $res.properties) * "\n" * stats_to_text($cte_eff)
+
+
     text!(
         ax,
         Point2f(10, 50), # 2D position in pixels
@@ -288,7 +307,7 @@ function compute_emod(pm::S.IsotropicElasticParameters,
 
     pavg = S.extract_orthotropic_constants(Cavg; mandel)
     # @info "Extracted props", pavg
-    return [S.apparent_modulus(pavg, ang) for ang in angles]
+    return (;moduli = [S.apparent_modulus(pavg, ang) for ang in angles], properties = pavg)
 
 end
 
