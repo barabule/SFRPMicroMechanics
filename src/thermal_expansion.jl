@@ -280,51 +280,80 @@ function effective_thermal_expansion_chow(pm::IsotropicElasticParameters,
 end
 
 
-# function compute_thermal_MT(pm::IsotropicElasticParameters, 
-#                             pfs::Vector{Union{IsotropicElasticParameters, TransverseIsotropicElasticParameters}}, 
-#                             cte_m::ThermalExpansion, 
-#                             cte_f::Vector{ThermalExpansion}, 
-#                             vfs::Vector{Real}, 
-#                             ARs::Vector{Real}, 
-#                             shapes::Vector{InclusionGeometry}; 
-#                             mandel = true)
-
-#     num = pm.nu
-#     Cm = stiffness_matrix_voigt(pm; mandel)
-#     Cfs = [stiffness_matrix_voigt(pf;mandel) for pf in pfs] #stiffness fibers
-
-#     Sps = [eshelby_tensor(shapes[i], num, ARs[i]) for i in eachindex(shapes)]
-
-#     I6 = @SMatrix LinearAlgebra.I
-#     Qps = [Cm * (I - Sp) for Sp in Sps] #compliance contribution tensor
 
 
-#     Sfs = [inv(Cf) for Cf in Cfs] #compliance fibers
-#     Sm = inv(Cm) #compliance matrix
+function compute_thermal_expansion_shapery(pm::IsotropicElasticParameters, 
+                                           pf::IsotropicElasticParameters, 
+                                           cte_m::ThermalExpansion, 
+                                           cte_f::ThermalExpansion, 
+                                           vf::Real)
 
-#     vm = 1 - sum(vfs)
+    Em, νm = pm.E_modulus, pm.nu
+    Ef, νf = pf.E_modulus, pf.nu
 
-#     H_NIs = [vfs[i] * inv((Sfs[i] - Sm) + Qps[i]) for i in eachindex(vfs)]
+    αm = cte_m.alpha1
+    αf = cte_f.alpha1
 
-#     ΣSfpHNI = @SMatrix zeros(6,6)
-#     for p in eachindex(pfs)
-#         ΣSfpHNI += inv(Sfs[p] - Sm) * H_NIs[p]
-#     end
+    vm = 1 - vf
+
+    νc = vf * νf + vm * νf
+
+    αL = (Ef * αf * vf + Em * αm * vm) / (Ef * vf + Em * vm)
+
+    αT = (1 + νf) * αf * vf + (1 + νm) * αm * vm - αL * νc
+
+    return ThermalExpansion(αL, αT, αT)
+end
 
 
-#     H_MT = @SMatrix zeros(6,6)
 
-#     for p in eachindex(pfs)
-#         H_MT += H_NIs[p] * inv(ΣSfpHNI + vm * I6)
-#     end
+function compute_thermal_expansion_kerner(pm::IsotropicElasticParameters, 
+                                          pfs::Vector{IsotropicElasticParameters}, 
+                                          cte_m::ThermalExpansion, 
+                                          ctes_f::Vector{ThermalExpansion}, 
+                                          vfs::Vector{Real})
 
-#     αm = to_voigt(cte_m)
-#     αfs = [to_voigt(cte) for cte in cte_f]
+        αm = cte_m.alpha1
+        Vtol = sum(vfs)
+        Vm = 1 - Vtol
 
-#     α_eff = αm
+        αp = sum(cts_f[i].alpha1 * vfs[i]/Vtol for i in eachindex(ctes_f))
 
-#     for p in eachindex(pfs)
-#         α_eff += H
-#     end
+        Km = bulk_modulus(pm)
+        Gm = shear_modulus(pm)
+        Kp = sum(bulk_modulus.(pfs) .* vfs ./ Vtol)
+        # Gp = sum(shear_modulus(pfs[i]) * vfs[i] / Vtol for i in eachindex(pfs))
 
-# end
+        αC = αm * Vm + sum(ctes_f[i].alpha1 * vfs[i] for i in eachindex(ctes_f)) + Vm * (1 - Vm) * 
+            (αp - αm) * (Kp - Km) / (Vm * Km + sum(vfs[i] .* Kp) + (3 * Km * Kp) / (4Gm))
+
+        return ThermalExpansion(αC)
+
+end
+
+function bulk_modulus(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
+    return E / (3(1-2nu))
+end
+
+function shear_modulus(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
+    return E/ (2(1+nu))
+end
+
+
+function hashin_strikman_bounds(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters, vf)
+    vm = 1 - vf
+
+    Km = bulk_modulus(pm)
+    Gm = shear_modulus(pm)
+    Kf = bulk_modulus(pf)
+    Gf = shear_modulus(pf)
+
+    Kl = Km + vf/ (1/(Kf - Km) + vm / (Km + 4Gm/3))
+
+    Ku = Kf + vm / (1 / (Km - Kf) + (1 - vm) / (Kf + 4Gf/3))
+
+    return (;lower= Kl, upper = Ku)
+end
+
