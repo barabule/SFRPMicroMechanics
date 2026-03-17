@@ -243,7 +243,8 @@ function start_gui(;
                                                         $vol_frac,
                                                         $aspect_ratio,
                                                         $orientation_tensor,
-                                                        $(inclusion_menu.selection),
+                                                        $(inclusion_menu.selection);
+                                                        mandel
                                                         )
 
 
@@ -318,10 +319,13 @@ function compute_effective_thermal_expansion(pm::S.IsotropicElasticParameters,
                                              volume_fraction,
                                              aspect_ratio,
                                              a2::S.OrientationTensor,
-                                             inclusion::S.InclusionGeometry,
+                                             inclusion::S.InclusionGeometry;
+                                             mandel = true
                                              )
-    # fibers = S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)
-    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f,volume_fraction, aspect_ratio, a2, inclusion)
+
+    fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
+    cte_eff = S.ThermalExpansion(pm, fibers, [cte_m, cte_f]; mandel)
+    # cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f,volume_fraction, aspect_ratio, a2, inclusion)
     return cte_eff
 end
 
