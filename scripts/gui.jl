@@ -324,7 +324,7 @@ function compute_effective_thermal_expansion(pm::S.IsotropicElasticParameters,
                                              )
 
     fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
-    cte_eff = S.ThermalExpansion(pm, fibers, [cte_m, cte_f]; mandel)
+    cte_eff = S.ThermalExpansion(pm, fibers, [cte_m, cte_f], a2; mandel)
     # cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f,volume_fraction, aspect_ratio, a2, inclusion)
     return cte_eff
 end

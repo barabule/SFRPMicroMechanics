@@ -204,18 +204,20 @@ end
 
 function ThermalExpansion(pm::IsotropicElasticParameters,
                             fibers::AbstractVector{<:FiberPhase},
-                            ctes::AbstractVector{<:ThermalExpansion};
+                            ctes::AbstractVector{<:ThermalExpansion},
+                            a::OrientationTensor;
                             mandel = true)
 
     @assert length(fibers) + 1 == length(ctes)
-    return effective_thermal_expansion_mt(pm, fibers, ctes; mandel)
+    return effective_thermal_expansion_mt(pm, fibers, ctes, a; mandel)
 
 end
 
 
 function effective_thermal_expansion_mt(pm::IsotropicElasticParameters, 
                                      fibers::AbstractVector{<:FiberPhase}, 
-                                     ctes::AbstractVector{<:ThermalExpansion};
+                                     ctes::AbstractVector{<:ThermalExpansion},
+                                     a::OrientationTensor;
                                      mandel = true,
                                      )
 
@@ -240,13 +242,24 @@ function effective_thermal_expansion_mt(pm::IsotropicElasticParameters,
     end
     # Σϕf = sum(ϕf)
 
-
+    #aligned CTE
     αeff = αm
     for i in 1:N
         αeff += ϕf[i] * inv((Cf[i] - Cm) * (Sf[i] - ΣϕfSI) + Cm) * Cf[i] * (αf[i] - αm)
     end
+
+
+    αl = αeff[1]
+    αt = αeff[2]
+    #averaging
+    A2 = to_matrix(a)
+    αavg = SymmetricTensor{2,3}( 
+                        (i, j) -> αt * δ(i, j) + (αl - αt) * A2[i, j]
+                                )
+
+    return  ThermalExpansion(tovoigt(αavg))
     # @info αeff
-    return ThermalExpansion(αeff)
+    # return ThermalExpansion(αeff)
 end
 
 

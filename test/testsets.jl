@@ -600,7 +600,7 @@ end
 
     ctes = [cte_m, cte_f]
     @info "effective CTE MT"
-    cte_eff = S.effective_thermal_expansion_mt(pm, fibers, ctes; mandel)
+    cte_eff = S.effective_thermal_expansion_mt(pm, fibers, ctes, a; mandel)
     display(cte_eff)
     
     # @info "effective CTE Chow"
@@ -631,12 +631,14 @@ end
     @test cte_eff.alpha1 < cte_eff.alpha2 ≈ cte_eff.alpha3
 
 
-    # #results for transverse with isotropic props == isotropic
-    # Gf = Ef / (2(1+nuf))
-    # pf = S.TransverseIsotropicElasticParameters(;E1 = Ef, E2 = Ef, nu12 = nuf, nu23 = nuf, G12 = Gf)
-    # cte_f2 = S.ThermalExpansion(pm, pf, cte_m, cte_f, 0.2, 15.5, a, shape)
-    # cte_iso = S.ThermalExpansion(pm, S.IsotropicElasticParameters(Ef, nuf), cte_m, cte_f, 0.2, 15.5, a, shape)
-    # @test cte_eff.alpha1 ≈ cte_f2.alpha1 ≈ cte_f2.alpha2 ≈ cte_f2.alpha3
+    #results for transverse with isotropic props == isotropic
+    Gf = Ef / (2(1+nuf))
+    pf = S.TransverseIsotropicElasticParameters(;E1 = Ef, E2 = Ef, nu12 = nuf, nu23 = nuf, G12 = Gf)
+    vf, AR = 0.2, 15.0
+    fibers = [S.FiberPhase(pf, vf, AR, shape)]
+    cte_f2 = S.ThermalExpansion(pm, fibers, [cte_m, cte_f] , a)
+    cte_iso = S.ThermalExpansion(pm, S.IsotropicElasticParameters(Ef, nuf), cte_m, cte_f, vf, AR, a, shape)
+    @test cte_eff.alpha1 ≈ cte_f2.alpha1 ≈ cte_f2.alpha2 ≈ cte_f2.alpha3
 
 
     # #transverse ortho
