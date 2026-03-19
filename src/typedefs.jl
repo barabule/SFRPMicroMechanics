@@ -49,6 +49,21 @@ function stiffness_matrix_voigt(p::TransverseIsotropicElasticParameters; mandel 
     return stiffness_matrix_voigt(OrthotropicElasticParameters(p); mandel)    
 end
 
+
+function bulk_modulus(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
+    return E / (3(1-2nu))
+end
+
+function shear_modulus(p::IsotropicElasticParameters)
+    E, nu = p.E_modulus, p.nu
+    return E/ (2(1+nu))
+end
+
+function lame_constant(p::IsotropicElasticParameters)
+    return p.E_modulus * p.nu / ((1 + p.nu) * (1 - 2p.nu))
+end
+
 function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
     
     E1 = p.E1

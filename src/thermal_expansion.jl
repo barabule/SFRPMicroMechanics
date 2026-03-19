@@ -49,13 +49,12 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
                           shape::InclusionGeometry;
                           mandel = false)
                           
-    Em, num = pm.E_modulus, pm.nu
-    Ef, nuf = pf.E_modulus, pf.nu
+    # Em, num = pm.E_modulus, pm.nu
+    # Ef, nuf = pf.E_modulus, pf.nu
 
     alpham = cte_m.alpha1
     alphaf = cte_f.alpha1
 
-    a11, a22 = a.a11, a.a22
 
     # 1. Setup Stiffness
     Cm = stiffness_matrix_voigt(pm; mandel)
@@ -64,7 +63,7 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
     I6 = SMatrix{6, 6}(LinearAlgebra.I)
 
     
-    S_eshelby = eshelby_tensor(shape, num, AR) |> convert_3333_to_66
+    S_eshelby = eshelby_tensor(shape, pm.nu, AR) |> convert_3333_to_66
     
     # 2. MT Concentration Tensor
     Adil = inv(I6 + S_eshelby * (inv(Cm) * (Cf - Cm)))
@@ -83,19 +82,24 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
     term = vf * inv(C_aligned) * (Cf * Amt * (alpha_f_vec .- alpha_m_vec))
     alpha_aligned_vec = alpha_m_vec .+ term
 
-    # 5. Orientation Averaging
-    # For CTE (a 2nd order tensor), averaging is simpler than stiffness:
-    # alpha_ij = (a1_aligned - a2_aligned) * a_ij + a2_aligned * delta_ij
-    a1 = alpha_aligned_vec[1]
-    a2 = alpha_aligned_vec[2] # Transverse aligned CTE
-    
-    a33 = 1.0 - a11 - a22
-    alpha1 = (a1 - a2) * a11 + a2
-    alpha2 = (a1 - a2) * a22 + a2
-    alpha3 = (a1 - a2) * a33 + a2
-    
-    return ThermalExpansion(alpha1, alpha2, alpha3)
+    return orientation_averaging_thermal_expansion(ThermalExpansion(alpha_aligned_vec), a)
 end
+
+
+function orientation_averaging_thermal_expansion(cte::ThermalExpansion, a::OrientationTensor)
+
+
+    αl = cte.alpha1
+    αt = 1/2 * cte.alpha2 + 1/2 * cte.alpha3
+    #averaging
+    A2 = to_matrix(a)
+    α_avg = SymmetricTensor{2,3}( 
+                        (i, j) -> αt * δ(i, j) + (αl - αt) * A2[i, j]
+                                )
+
+    return  ThermalExpansion(tovoigt(α_avg))
+end
+
 
 
 function ThermalExpansion(pm::IsotropicElasticParameters, 
@@ -166,42 +170,53 @@ function effective_thermal_expansion_mt(pm::IsotropicElasticParameters,
         αeff += ϕf[i] * inv((Cf[i] - Cm) * (Sf[i] - ΣϕfSI) + Cm) * Cf[i] * (αf[i] - αm)
     end
 
-
-    αl = αeff[1]
-    αt = αeff[2]
-    #averaging
-    A2 = to_matrix(a)
-    αavg = SymmetricTensor{2,3}( 
-                        (i, j) -> αt * δ(i, j) + (αl - αt) * A2[i, j]
-                                )
-
-    return  ThermalExpansion(tovoigt(αavg))
-    # @info αeff
-    # return ThermalExpansion(αeff)
+    return orientation_averaging_thermal_expansion(ThermalExpansion(αeff), a)
+    
+    
 end
 
 
+"""
+    effective_thermal_expansion_chow(pm::IsotropicElasticParameters, 
+                                     pf::IsotropicElasticParameters, 
+                                     cte_m::ThermalExpansion,
+                                     cte_f::ThermalExpansion,
+                                     volume_fraction::Real,
+                                     aspect_ratio::Real,
+                                     shape::InclusionGeometry)
+                                     
+
+Effective thermal expansion according to "Further studies on MorieTanaka models for thermal expansion
+coefﬁcients of composites" by Pin Lu, 2012, Polymer 54, 1691-1699
+
+Only works for isotropic fibers
+"""
 function effective_thermal_expansion_chow(pm::IsotropicElasticParameters, 
-                                     fiber::FiberPhase, 
-                                     ctes::AbstractVector{<:ThermalExpansion})
+                                     pf::IsotropicElasticParameters, 
+                                     cte_m::ThermalExpansion,
+                                     cte_f::ThermalExpansion,
+                                     volume_fraction::Real,
+                                     aspect_ratio::Real,
+                                     shape::InclusionGeometry)
 
-    νm = pm.nu
-    Em = pm.E_modulus
-    Gm = Em / (2 * (1 + νm))
-    Km = Em / (3 * (1- 2νm))
+    
+    Gm = shear_modulus(pm)
+    Km = bulk_modulus(pm)
+
     pf = fiber.elastic_properties
-    νf = pf.nu
-    Ef = pf.E_modulus
-    Gf = Ef/(2 * (1+νf))
-    Kf = Ef / (3 * (1- 2νf))
+    
+    Gf = shear_modulus(pf)
+    Kf = bulk_modulus(pf)
 
-    S = eshelby_tensor(fiber.shape, νf, fiber.aspect_ratio)
-    ϕf = fiber.volume_fraction
-    αₘ = ctes[1].alpha1
+    S = eshelby_tensor(shape, pm.nu, aspect_ratio)
+    
+    ϕf = volume_fraction
+    
+    αₘ = cte_m.alpha1
     γm = 3αₘ
-    αf = ctes[2]
+    
+    αf = cte_f
     γf = αf.alpha1 + αf.alpha2 + αf.alpha3
-
 
     b1 = S[2,2,2,2] + S[3,3,2,2] + S[1,1,2,2]
     b3 = S[2,2,1,1] + S[3,3,1,1] + S[1,1,1,1]
@@ -215,8 +230,8 @@ function effective_thermal_expansion_chow(pm::IsotropicElasticParameters,
     G1 = 1 + (Gf/Gm - 1) * ((1 - ϕf) * c1 + ϕf)
     G3 = 1 + (Gf/Gm - 1) * ((1 - ϕf) * c3 + ϕf)
 
-    α11 = αₘ + ϕf * G1 / (2 * K1 * G3 + G1 * K3 * Km) * Kf / Km * (γf - γm)
-    α22 = α33 = αₘ + ϕf * G3 / (2 * K1 * G3 + G1 * K3 * Km) * Kf / Km * (γf - γm)
+    α11 =       αₘ + ϕf * G1 / (2 * K1 * G3 + G1 * K3) * Kf / Km * (γf - γm)
+    α22 = α33 = αₘ + ϕf * G3 / (2 * K1 * G3 + G1 * K3) * Kf / Km * (γf - γm)
 
     return ThermalExpansion(α11, α22, α33)
 end
@@ -224,11 +239,20 @@ end
 
 
 
+"""
+    compute_thermal_expansion_shapery(pm::IsotropicElasticParameters, 
+                                      pf::IsotropicElasticParameters, 
+                                      cte_m::ThermalExpansion, 
+                                      cte_f::ThermalExpansion, 
+                                      volume_fraction::Real)
+
+TBW
+"""
 function compute_thermal_expansion_shapery(pm::IsotropicElasticParameters, 
                                            pf::IsotropicElasticParameters, 
                                            cte_m::ThermalExpansion, 
                                            cte_f::ThermalExpansion, 
-                                           vf::Real)
+                                           volume_fraction::Real)
 
     Em, νm = pm.E_modulus, pm.nu
     Ef, νf = pf.E_modulus, pf.nu
@@ -236,6 +260,7 @@ function compute_thermal_expansion_shapery(pm::IsotropicElasticParameters,
     αm = cte_m.alpha1
     αf = cte_f.alpha1
 
+    vf = volume_fraction
     vm = 1 - vf
 
     νc = vf * νf + vm * νf
@@ -244,7 +269,7 @@ function compute_thermal_expansion_shapery(pm::IsotropicElasticParameters,
 
     αT = (1 + νf) * αf * vf + (1 + νm) * αm * vm - αL * νc
 
-    return ThermalExpansion(αL, αT, αT)
+    return ThermalExpansion(αL, αT)
 end
 
 
@@ -273,15 +298,7 @@ function compute_thermal_expansion_kerner(pm::IsotropicElasticParameters,
 
 end
 
-function bulk_modulus(p::IsotropicElasticParameters)
-    E, nu = p.E_modulus, p.nu
-    return E / (3(1-2nu))
-end
 
-function shear_modulus(p::IsotropicElasticParameters)
-    E, nu = p.E_modulus, p.nu
-    return E/ (2(1+nu))
-end
 
 
 function hashin_strikman_bounds(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters, vf)
@@ -299,3 +316,87 @@ function hashin_strikman_bounds(pm::IsotropicElasticParameters, pf::IsotropicEla
     return (;lower= Kl, upper = Ku)
 end
 
+
+
+function effective_thermal_expansion_mt_aligned(pm::IsotropicElasticParameters,
+                                                pf::IsotropicElasticParameters,
+                                                cte_m::ThermalExpansion,
+                                                cte_f::ThermalExpansion,
+                                                volume_fraction::Real,
+                                                aspect_ratio::Real)
+
+    λm = lame_constant(pm)
+    μm = shear_modulus(pm)
+
+    λf = lame_constant(pf)
+    μf = shear_modulus(pf)
+
+    S = eshelby_tensor(pm.nu, aspect_ratio)
+
+    D1 = 1 + 2(μf - μm) / (λf - λm)
+    D2 = (λm + 2μm) / (λf - λm)
+    D3 = λm / (λf - λm)
+    D0 = (3λf + 2μf) / (λf - λm)
+
+    ϕf = volume_fraction
+    
+    B1 = ϕf * D1 + D2 + (1 - ϕf) * (D1 * S[1,1,1,1] + 2S[2,2,1,1])
+    B2 = ϕf + D3 + (1 - ϕf) * (D1 * S[1,1,2,2] + S[2,2,2,2] + S[2,2,3,3])
+    B3 = ϕf + D3 + (1 - ϕf) *(S[1,1,1,1] + (1 + D1) * S[2,2,1,1])
+    B4 = ϕf * D1 + D2 + (1 - ϕf) * (S[1,1,2,2] + D1 * S[2,2,2,2] + S[2,2,3,3])
+    B5 = ϕf + D3 + (1 - ϕf) * (S[1,1,2,2] + S[2,2,2,2] + D1 * S[2,2,3,3])
+
+    αm = cte_m.alpha1
+    αf = cte_f.alpha1 
+    
+    α11 =       αm + ϕf * (2B2 - B4 - B5) * D0 / (2B2*B3 - B1 * (B4 + B5)) * (αf - αm)
+    α22 = α33 = αm + ϕf *       (B3 - B1) * D0 / (2B2*B3 - B1 * (B4 + B5)) * (αf - αm) 
+
+    return ThermalExpansion(α11, α22, α33)
+end
+
+
+function effective_thermal_expansion_ROM(
+                                        cte_m::ThermalExpansion,
+                                        cte_f::ThermalExpansion,
+                                        volume_fraction::Real,)
+
+    αm = cte_m.alpha1
+    αf = cte_f.alpha1
+
+    ϕf = volume_fraction
+    
+    return αm * (1 - ϕf) + αf * ϕf
+end
+
+
+function effective_thermal_expansion_turner(pm::IsotropicElasticParameters,
+                                        pf::IsotropicElasticParameters,
+                                        cte_m::ThermalExpansion,
+                                        cte_f::ThermalExpansion,
+                                        volume_fraction::Real,)
+
+    αm = cte_m.alpha1
+    αf = cte_f.alpha1
+
+    Km = bulk_modulus(pm)
+    Kf = bulk_modulus(pf)
+
+    ϕf = volume_fraction
+    
+    return (αm * (1 - ϕf) * Km + αf * ϕf * Kf) / ((1-ϕf) * km + ϕf * Kf)
+end
+
+
+
+function compute_all_thermal_expansions(pm::IsotropicElasticParameters,
+                                        fibers = AbstractVector{<:FiberPhase},
+                                        ctes::AbstractVector{<:ThermalExpansion},
+                                        a::OrientationTensor;
+                                        mandel= true,
+                                        average= false,
+                                        )
+
+
+
+end
