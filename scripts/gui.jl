@@ -253,8 +253,8 @@ function start_gui(;
     set_close_to!(matrix_sliders.sliders[1], 3.0)
 
     # ptext = @lift display($(res.properties))
-    # stats_text = @lift display($res.properties) * stats_to_text($cte_eff)
-    stats_text = @lift sprint(show,"text/plain", $res.properties) * "\n" * stats_to_text($cte_eff)
+    # stats_text = @lift display($res.properties) * cte_to_text($cte_eff)
+    stats_text = @lift sprint(show,"text/plain", $res.properties) * "\n" * cte_to_text($cte_eff)
 
 
     text!(
@@ -320,21 +320,48 @@ function compute_effective_thermal_expansion(pm::S.IsotropicElasticParameters,
                                              aspect_ratio,
                                              a2::S.OrientationTensor,
                                              inclusion::S.InclusionGeometry;
-                                             mandel = true
+                                             mandel = true,
+                                             average = true,
                                              )
 
     fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
-    cte_eff = S.ThermalExpansion(pm, fibers, [cte_m, cte_f], a2; mandel)
+    ctes = [cte_m, cte_f]
+
+    all_ctes  = S.compute_all_thermal_expansions(pm, fibers, ctes, a2; mandel, average) 
     # cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f,volume_fraction, aspect_ratio, a2, inclusion)
-    return cte_eff
+    return all_ctes
 end
 
 
-function stats_to_text(cte_eff)
-    alpha1, alpha2, alpha3 = round.((cte_eff.alpha1 *1e6, cte_eff.alpha2 *1e6, cte_eff.alpha3 *1e6), digits= 1)
+function cte_to_text(cte_eff)
 
-    return "Effective CTE:\n$alpha1 x1e-6/°C\n$alpha2 x1e-6/°C\n$alpha3 x1e-6/°C\n"
+    alpha_turner = round(cte_eff.turner.alpha1 * 1e6, digits = 1)
+    
+    alpha_rom = round(cte_eff.rom.alpha1 * 1e6, digits = 1)
+    
+    alpha_kerner = round(cte_eff.kerner.alpha1 * 1e6, digits = 1)
 
+    alpha1_shapery = round(cte_eff.shapery.alpha1 * 1e6, digits = 1)
+    alpha2_shapery = round(cte_eff.shapery.alpha2 * 1e6, digits = 1)
+
+    alpha1_chow = round(cte_eff.chow.alpha1 * 1e6, digits = 1)
+    alpha2_chow = round(cte_eff.chow.alpha2 * 1e6, digits = 1)
+    alpha3_chow = round(cte_eff.chow.alpha3 * 1e6, digits = 1)
+
+    alpha1_mt = round(cte_eff.moritanaka.alpha1 * 1e6, digits = 1)
+    alpha2_mt = round(cte_eff.moritanaka.alpha2 * 1e6, digits = 1)
+    alpha3_mt = round(cte_eff.moritanaka.alpha3 * 1e6, digits = 1)
+
+    io = IOBuffer()
+    println(io, "Effective CTEs:")
+    println(io, "ROM:\nα = $(alpha_rom)ppm/°C")
+    println(io, "Turner:\nα = $(alpha_turner)ppm/°C")
+    println(io, "Kerner:\nα = $(alpha_kerner)ppm/°C")
+    println(io, "Shapery:\nα₁ = $(alpha1_shapery)ppm/°C\nα₂ = $(alpha2_shapery)ppm/°C")
+    println(io, "Chow:\nα₁ = $(alpha1_chow)ppm/°C\nα₂ = $(alpha2_chow)ppm/°C\nα₃ = $(alpha3_chow)ppm/°C")
+    println(io, "Mori Tanaka:\nα₁ = $(alpha1_mt)ppm/°C\nα₂ = $(alpha2_mt)ppm/°C\nα₃ = $(alpha3_mt)ppm/°C")
+    
+    return String(take!(io))
 end
 
 
