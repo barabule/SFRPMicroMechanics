@@ -95,6 +95,61 @@ function OrthotropicElasticParameters(p::IsotropicElasticParameters)
 end
 
 
+"""
+    compute_isotropic_best_fit(C_avg)
+Projects a 6x6 stiffness tensor (Voigt notation) onto the isotropic manifold.
+Returns IsotropicElasticParameters
+"""
+function isotropic_best_fit(C::AbstractMatrix)
+    @assert size(C) == (6, 6)
+    # Extract components for readability
+    # Note: Using 1-based indexing for Julia
+    C11, C22, C33 = C[1,1], C[2,2], C[3,3]
+    C12, C23, C13 = C[1,2], C[2,3], C[1,3]
+    C44, C55, C66 = C[4,4], C[5,5], C[6,6]
+
+    # Best-fit Bulk Modulus (K)
+    K = ((C11 + C22 + C33) + 2*(C12 + C23 + C13)) / 9.0
+    
+    # Best-fit Shear Modulus (G)
+    G = ((C11 + C22 + C33) - (C12 + C23 + C13) + 3*(C44 + C55 + C66)) / 15.0
+
+    # Convert to Young's Modulus (E) and Poisson's Ratio (nu)
+    E = (9 * K * G) / (3 * K + G)
+    nu = (3 * K - 2 * G) / (2 * (3 * K + G))
+
+    return IsotropicElasticParameters(E, nu)
+end
+
+#upper bound
+function voigt_average(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+    @assert length(ps) == length(w)
+    W =sum(w)
+    return sum(stiffness_matrix_voigt(ps[i];mandel) * w[i]/ W for i in eachindex(ps))
+end
+
+#lower bound
+function reuss_average(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+    @assert length(ps) == length(w)
+    W =sum(w)
+    #maybe this could be be handled by compliance matrices
+    return inv(sum(inv(stiffness_matrix_voigt(ps[i];mandel)) * w[i]/ W for i in eachindex(ps)))
+end
+
+#average upper lower
+function hill_average(args...; kwargs...)
+    1/2 * voigt_average(args...; kwargs...) + 1/2 * reuss_average(args...; kwargs...)
+end
+
+
+function IsotropicElasticParameters(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+    @assert length(ps) == length(w)
+    C_avg = hill_average(ps, w; mandel)
+    return isotropic_best_fit(C_avg)
+end
+
+
+
 function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicElasticParameters)
     println(io, "Elastic Constants:")
     # for field in fieldnames(T)

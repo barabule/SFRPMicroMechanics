@@ -592,7 +592,17 @@ end
     @test cte_iso.alpha1 ≈ cte_f2.alpha1 ≈ cte_f2.alpha2 ≈ cte_f2.alpha3
     #    
 
+    # just test if this works
+
     
+    cte_collection = S.compute_all_thermal_expansions(pm, fibers, cte_vec, a; average = true, mandel =true)
+    # display(cte_collection)
+    @info "All the CTEs"
+    for (name, cte) in pairs(cte_collection)
+        @info name
+        display(cte)
+    end
+
 end
 
 
