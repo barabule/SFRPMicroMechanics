@@ -32,6 +32,8 @@ function start_gui(;
                                       ("ORW3", S.ORW3),
                                       ("ORFM", S.ORFM),
                                       ("ORL", S.ORL),
+                                      ("HL1", S.HL1Closure),
+                                    #   ("HL2", S.HL2Closure), #Nans
                                       ], 
                                         default = "IBOF")
     matrix_sliders = SliderGrid(fig,
@@ -254,7 +256,10 @@ function start_gui(;
 
     # ptext = @lift display($(res.properties))
     # stats_text = @lift display($res.properties) * cte_to_text($cte_eff)
-    stats_text = @lift sprint(show,"text/plain", $res.properties) * "\n" * cte_to_text($cte_eff)
+    stats_text = @lift sprint(show,"text/plain", $res.properties) 
+
+    cte_text = @lift cte_to_text($cte_eff)
+
 
 
     text!(
@@ -268,6 +273,26 @@ function start_gui(;
         # clip = false,
     )
 
+    text!(
+        ax,
+        Point2f(200, 50), # 2D position in pixels
+        text = cte_text,
+        fontsize = 16,
+        color = :black,
+        space = :pixel, # Renders text in screen space
+        # align = (:right, :top),
+        # clip = false,
+    )
+
+
+    #callout for the data
+    Ncallout = 9
+    
+    idx_callouts = round.(Int, range(1, N, length = Ncallout))
+    angles_callouts = angles[idx_callouts]
+    Emod_callouts = @lift round.($Emod[idx_callouts], digits =2)
+    callout_text = @lift string.($Emod_callouts)
+    text!(ax, angles_callouts, Emod_callouts, text = callout_text)
 
     fig
 end
