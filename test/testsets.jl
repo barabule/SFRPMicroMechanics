@@ -340,14 +340,17 @@ end
 end
     
 @testset "Unidirectional (UD) Alignment" verbose = true begin
+    S = SFRPMicroMechanics
     # a11 = 1.0 means all fibers are perfectly parallel.
     # This must yield a Transversely Isotropic material.
     a11, a22  = 1.0,  0.0
     Em, num, Ef, nuf = 2500.0, 0.3, 70e3, 0.2
+    pm = S.IsotropicElasticParameters(Em, num)
+    pf = S.IsotropicElasticParameters(Ef, nuf)
     aspect_ratio = 10.0
     vf = 0.17
-    Ceff = compute_orthotropic_properties(Em, num, Ef, nuf, vf, aspect_ratio, a11, a22)
-    res = props = SFRPMicroMechanics.extract_orthotropic_constants(Ceff)
+    Ceff = S.mori_tanaka(pm, pf, vf, aspect_ratio)
+    res = props = S.extract_orthotropic_constants(Ceff)
     @test res.E1 > res.E2
     @test isapprox(res.E2, res.E3, rtol=1e-4)
     @test isapprox(res.nu21, res.nu31, rtol=1e-4)

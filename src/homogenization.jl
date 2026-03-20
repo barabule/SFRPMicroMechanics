@@ -1,94 +1,9 @@
 
 """
-    compute_orthotropic_properties(matrix_props::IsotropicElasticParameters,
-                                        fiber_props::AbstractElasticParameters;
-                                        volume_fraction = 0.2,
-                                        aspect_ratio = 10.0,
-                                        orientation_tensor=OrientationTensor(0.7, 0.3),
-                                        )
-
-Effective stiffness matrix (Voigt 6x6 form) for matrix and fiber
-"""
-function compute_orthotropic_properties(matrix_props::IsotropicElasticParameters,
-                                        fiber_props::AbstractElasticParameters;
-                                        volume_fraction = 0.2,
-                                        mass_fraction = nothing,
-                                        density_fiber = 1.0,
-                                        density_matrix = 1.0,
-                                        aspect_ratio = 10.0,
-                                        orientation_tensor=OrientationTensor(0.7, 0.3),
-                                        shape = SpheroidalInclusion,
-                                        mandel = true,
-                                        )
-
-    Cm = stiffness_matrix_voigt(matrix_props)
-    Cf = stiffness_matrix_voigt(fiber_props)
-    
-    if !isnothing(mass_fraction) #overwrite volume fraction
-        volume_fraction = calc_vol_fraction(mass_fraction, density_fiber, density_matrix)
-    end
-    
-    C_aligned = mori_tanaka(Cm, Cf, volume_fraction, aspect_ratio, matrix_props.nu; mandel) 
-    C_averaged = orientation_average(C_aligned, orientation_tensor; mandel)
-
-    # return extract_orthotropic_constants(C_averaged)
-    return C_averaged
-end
-
-# Main wrapper function to be called by users
-function compute_orthotropic_properties(Em, num, Ef, nuf, vf, AR, a11, a22)
-
-    Cm = isotropic_stiffness(Em, num)
-    Cf = isotropic_stiffness(Ef, nuf)
-    C_aligned = mori_tanaka(Cm, Cf, vf, AR, num)
-    a = OrientationTensor(a11, a22)
-    
-    C_avg = orientation_average(C_aligned, a)
-    # return extract_orthotropic_constants(C_avg)
-end
-
-
-
-
-function mt_dilute_tensor(Cm, Cf, S)
-    
-    I = SMatrix{6,6}(LinearAlgebra.I)
-    # 1. Calculate the Dilute Concentration Tensor (A_dilute)
-    # A_dilute = [I + S * inv(Cm) * (Cf - Cm)]^-1
-    # This accounts for the strain in a single fiber relative to the matrix
-    return inv(I + S * (inv(Cm) * (Cf - Cm)))
-end
-
-function mori_tanaka(Cm::AbstractMatrix, Cf::AbstractMatrix, vf, AR, nu_m; 
-                    fiber_shape = SpheroidalInclusion()::InclusionGeometry, 
-                    mandel = true,
-                    )
-
-    T = eltype(Cm)
-    I = SMatrix{6,6, T}(LinearAlgebra.I)
-    
-    S= convert_3333_to_66(eshelby_tensor(fiber_shape, nu_m, AR); mandel)
-    
-    A_dilute = mt_dilute_tensor(Cm, Cf, S)
-    
-    # 2. Apply the Mori-Tanaka interaction term
-    # This accounts for the "crowding" of fibers as f increases
-    term1 = vf * (Cf - Cm) * A_dilute
-    term2 = inv((1 - vf) * I + vf * A_dilute)
-    
-    C_eff = Cm + term1 * term2
-    
-    return SMatrix{6,6}(C_eff)
-end
-
-
-
-
-"""
     FiberPhase - collects fiber properties:
         - elastic_properties - (isotropic or Orthotropic)
         - volume fraction of this phase
-        - aspect ratio (fraction of longest to shortest dim)
+        - aspect ratio (ratiio of longest to shortest dim)
         - shape : InclusionGeometry (one of :SphericalInclusion(), SpheroidalInclusion(), NeedleInclusion(),
                     DiscInclusion(), ThinDiscInclusion()
 
@@ -234,23 +149,6 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel = true)
 
     nu31_UD = (nu12_UD * E33_UD) / E11_UD
 
-    # S11_UD = 1 / E11_UD
-    # S22_UD = 1 / E22_UD
-    # S33_UD = 1 / E33_UD
-    # S12_UD = -nu12_UD / E11_UD
-    # S13_UD = -nu31_UD / E33_UD
-    # S23_UD = -nu23_UD / E22_UD
-    # S44_UD = 1/G23_UD
-    # S55_UD = 1/G31_UD
-    # S66_UD = 1/G12_UD
-
-    # S_UD = @SMatrix [S11_UD  S12_UD  S13_UD  0      0     0;
-    #                  S12_UD  S22_UD  S23_UD  0      0     0;
-    #                  S13_UD  S23_UD  S33_UD  0      0     0;
-    #                    0       0       0    S44_UD  0     0;
-    #                    0       0       0     0   S55_UD   0;
-    #                    0       0       0     0      0  S66_UD]  
-    # return (inv(S_UD), (;E11_UD, E22_UD, G12_UD, G23_UD, nu12_UD, nu23_UD))
 
     peff = OrthotropicElasticParameters(;E1 = E11_UD,
                                          E2 = E22_UD, 
