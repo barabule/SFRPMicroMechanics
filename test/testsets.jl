@@ -416,6 +416,25 @@ end
     end
     # Explanation: Micromechanics models must respect thermodynamic bounds.
     #TODO fails for SpheroidalInclusion
+
+
+    #halpin-tsai
+    #iso
+    C_ht = S.halpin_tsai(pm, pf, vf, aspect_ratio)
+    p = S.extract_orthotropic_constants(C_ht)
+    ROM_E1 = (1 - vf) * pm.E_modulus + vf * pf.E_modulus
+    @info "Iso Halpin Tsai E1 = $(p.E1), ROM E = $ROM_E1"
+     
+    @test p.E1 < ROM_E1
+
+    #trans fiber
+    pf = S.TransverseIsotropicElasticParameters(;E1 = 230.0, E2 = 25.0, nu21 = 0.03, nu23 = 0.4, G12 = 50.0)
+    C_ht = S.halpin_tsai(pm, pf, vf, aspect_ratio)
+    p = S.extract_orthotropic_constants(C_ht)
+    ROM_E1 = (1 - vf) * pm.E_modulus + vf * pf.E1
+    @info "Transverse Halpin Tsai E1 = $(p.E1), ROM E = $ROM_E1"
+    @test p.E1 < ROM_E1
+
 end
 
 @testset "Apparent Elastic Modulus" verbose = true begin
