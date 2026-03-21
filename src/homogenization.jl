@@ -21,6 +21,8 @@ Base.@kwdef struct FiberPhase{EP<:AbstractElasticParameters, T<:Real, IG<:Inclus
         IG = typeof(shap)
         @assert IG<:InclusionGeometry
         @assert EP<:AbstractElasticParameters
+        @assert 0<= vf <= 1 "Volume fraction must be between 0 and 1!"
+        @assert ar > 0 "Aspect ratio must be positive!"
         return new{EP, T, IG}(ep, VF, AR, shap)
     end
 end
@@ -106,6 +108,68 @@ end
 
 
 
+function effective_stiffness_mori_tanaka(pm::IsotropicElasticParameters, 
+                                         fibers::AbstractVector{<:FiberPhase}, 
+                                         a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
+                                         closure_type = IBOF,
+                                         mandel = true,
+                                         symmetrize = true)
+
+    I6 = LinearAlgebra.I(6)
+    
+    νₘ = pm.nu
+    vf_total = sum(fiber.volume_fraction for fiber in fibers)
+    @assert 0 <= vf_total <= 1 "Fiber volume fractions must sum to <= 1!" 
+    
+    w = [fiber.volume_fraction / vf_total for fiber in fibers]
+    
+    if !isa(a, AbstractArray)
+        avec = [a for _ in fibers]
+    else
+        @assert length(a) == length(fibers) "Length of fibers and a must the same!"
+        avec = a
+    end
+
+    Cm = stiffness_matrix_voigt(pm; mandel)
+    #each fiber
+    Cf = [stiffness_matrix_voigt(fiber.elastic_properties; mandel) for fiber in fibers]
+
+    ΔC = [Cf[i] - Cm for i in eachindex(Cf)]
+
+    S = [convert_3333_to_66(eshelby_tensor(fiber.shape, νₘ, fiber.aspect_ratio); mandel) for fiber in fibers]
+
+    Af = [inv(I6 + S[i] * inv(Cm) * ΔC[i]) for i in eachindex(S)]
+
+
+    A_avg = @SMatrix zeros(6,6)
+    pol_A_avg = @SMatrix zeros(6,6)
+    for i in eachindex(w)
+        weighted_Af = ΔC[i] * Af[i] #add ΔC weigth
+
+        w_Af_avg = orientation_average(weighted_Af, avec[i]; mandel, closure_type) 
+
+        Af_avg = inv(ΔC[i]) * w_Af_avg[i] #remove ΔC weight
+
+        A_avg += w[i] * Af_avg
+        pol_A_avg += w[i] * ΔC[i] * Af_avg
+    end
+    inv_pol_A_avg = inv(pol_A_avg)
+
+    X = (1 - vf_total) * inv_pol_A_avg
+    Y = vf_total * A_avg * inv_pol_A_avg
+
+    if symmetrize
+        return Cm + vf_total * inv(X + 1/2 * (Y + Y'))
+    end
+    
+    return Cm + vf_total * inv(X + Y)
+
+end
+
+
+
+
+
 
 function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
                     volume_fraction, aspect_ratio; mandel = true)
@@ -164,8 +228,6 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel = true)
     return stiffness_matrix_voigt(peff; mandel)
 
 end
-
-
 
 
 
