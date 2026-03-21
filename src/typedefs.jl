@@ -495,7 +495,7 @@ end
 
 function stiffness_tensor(p::OrthotropicElasticParameters;mandel=false)
 
-    return mandel ? frommandel(stiffness_matrix_voigt(p; mandel)) : fromvoigt(stiffness_matrix_voigt(p; mandel))
+    convert_66_to_3333(stiffness_matrix_voigt(p; mandel); mandel)
 end
 
 
