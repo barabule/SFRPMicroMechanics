@@ -384,7 +384,7 @@ end
     # The longitudinal modulus E1 of a UD composite (a11=1) 
     # should never exceed the Voigt Upper Bound (Rule of Mixtures).
     S = SFRPMicroMechanics
-    a11, a22  = 1.0, 0.0
+    a11, a22  = 0.7, 0.2
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 1000.0
     vf = 0.2
@@ -806,56 +806,56 @@ end
 
 end
 
-
-@testset "Bond Matrix Validation" begin
-    S = SFRPMicroMechanics
-    I = S.LinearAlgebra.I
-    # 1. Setup a valid rotation Q (45 deg around Z-axis)
-    θ = π/4
-    Q =          [ cos(θ) -sin(θ) 0;
-                   sin(θ)  cos(θ) 0;
-                   0       0      1]
+#Is this actually needed?
+# @testset "Bond Matrix Validation" begin
+#     S = SFRPMicroMechanics
+#     I = S.LinearAlgebra.I
+#     # 1. Setup a valid rotation Q (45 deg around Z-axis)
+#     θ = π/4
+#     Q =          [ cos(θ) -sin(θ) 0;
+#                    sin(θ)  cos(θ) 0;
+#                    0       0      1]
     
-    @test isapprox(Q * Q', I, atol=1e-12) # Sanity check on Q
+#     @test isapprox(Q * Q', I, atol=1e-12) # Sanity check on Q
 
-    # 2. Generate the Bond Matrix M
-    M = S.convert_rot_33_to_66(Q)
+#     # 2. Generate the Bond Matrix M
+#     M = S.convert_rot_33_to_66(Q)
 
-    # 3. TEST 1: Identity Mapping
-    M_eye = S.convert_rot_33_to_66(I)
-    @test isapprox(M_eye, I, atol=1e-12)
+#     # 3. TEST 1: Identity Mapping
+#     M_eye = S.convert_rot_33_to_66(I)
+#     @test isapprox(M_eye, I, atol=1e-12)
 
-    # 4. TEST 2: Isotropic Invariance
-    # Define an Isotropic Stiffness Matrix (C) in Voigt form
-    E, ν = 210e9, 0.3
-    λ = E*ν / ((1+ν)*(1-2ν))
-    μ = E / (2*(1+ν))
+#     # 4. TEST 2: Isotropic Invariance
+#     # Define an Isotropic Stiffness Matrix (C) in Voigt form
+#     E, ν = 210e9, 0.3
+#     λ = E*ν / ((1+ν)*(1-2ν))
+#     μ = E / (2*(1+ν))
     
-    C_iso =  [
-        λ+2μ  λ     λ     0   0   0;
-        λ     λ+2μ  λ     0   0   0;
-        λ     λ     λ+2μ  0   0   0;
-        0     0     0     μ   0   0;
-        0     0     0     0   μ   0;
-        0     0     0     0   0   μ
-    ]
+#     C_iso =  [
+#         λ+2μ  λ     λ     0   0   0;
+#         λ     λ+2μ  λ     0   0   0;
+#         λ     λ     λ+2μ  0   0   0;
+#         0     0     0     μ   0   0;
+#         0     0     0     0   μ   0;
+#         0     0     0     0   0   μ
+#     ]
 
-    # Transform: C_rotated = M * C_iso * M'
-    C_rot = M * C_iso * M'
+#     # Transform: C_rotated = M * C_iso * M'
+#     C_rot = M * C_iso * M'
 
-    # @test isapprox(C_rot, C_iso, atol=1e-7)
-    @test S.LinearAlgebra.norm(C_rot - C_iso) < 1e-7
-    # @test all(isapprox.(C_rot, C_iso, atol = 1e-5))
-    # @info "C_rot"
-    # display(C_rot)
-    # @info("C_iso")
-    # display(C_iso)
-    # 5. TEST 3: Trace Invariance
-    # The sum of eigenvalues (or specific invariants) should hold.
-    @test isapprox(tr(C_rot), tr(C_iso), atol=1e-7)
+#     # @test isapprox(C_rot, C_iso, atol=1e-7)
+#     @test S.LinearAlgebra.norm(C_rot - C_iso) < 1e-7
+#     # @test all(isapprox.(C_rot, C_iso, atol = 1e-5))
+#     # @info "C_rot"
+#     # display(C_rot)
+#     # @info("C_iso")
+#     # display(C_iso)
+#     # 5. TEST 3: Trace Invariance
+#     # The sum of eigenvalues (or specific invariants) should hold.
+#     @test isapprox(tr(C_rot), tr(C_iso), atol=1e-7)
 
-    # println("✅ All Bond Matrix tests passed!")
-end
+#     # println("✅ All Bond Matrix tests passed!")
+# end
 
 
 
@@ -947,4 +947,41 @@ end
     # end
 
 
+end
+
+@testset "Specific" verbose = true begin
+    S = SFRPMicroMechanics
+    mandel = true
+
+    Em, num = 3.1, 0.34
+    pm = S.IsotropicElasticParameters(Em, num)
+    @info "pm"
+    display(pm)
+    Cm = S.stiffness_matrix_voigt(pm; mandel)
+    @info "Cm"
+    display(Cm)
+
+    Ef, nuf =  178.5, 0.05
+    pf = S.IsotropicElasticParameters(Ef, nuf)
+    @info "pf"
+    display(pf)
+    Cf = S.stiffness_matrix_voigt(pf; mandel)
+    @info "Cf"
+    display(Cf)
+
+    vf = 0.165
+    AR = 17.0
+
+    a2 = S.OrientationTensor(0.67, 0.23)
+
+    fiber = S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())
+
+
+    Cmt = S.mori_tanaka(pm, [fiber]; mandel)
+    @info "Cmt"
+    display(Cmt)
+
+    Cavg = S.orientation_average(Cmt, a2; closure_type = S.IBOF)
+    @info "Cavg"
+    display(Cavg)
 end

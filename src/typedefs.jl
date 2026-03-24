@@ -205,10 +205,8 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", p::IsotropicElasticParameters)
     println(io, "Elastic Constants:")
-    for field in fieldnames(T)
-        value = getfield(p, field)
-        println(io, "  $field = $(round(value, sigdigits =4))")
-    end
+    println(io, "E = $(p.E_modulus)")
+    println(io, "ν = $(p.nu)")
 end
 
 
