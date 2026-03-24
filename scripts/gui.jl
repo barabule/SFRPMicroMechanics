@@ -321,13 +321,16 @@ function compute_emod(pm::S.IsotropicElasticParameters,
     
     if mori_tanaka
         fibers = [S.FiberPhase(pf, volume_fraction, aspect_ratio, inclusion)]
-        Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize)
+        # Cmt = S.mori_tanaka(pm, fibers;mandel, symmetrize)
+        Cavg = S.mori_tanaka(pm, fibers, a2; closure_type = closure, mandel, symmetrize)
+        
     else
         
         Cmt = S.halpin_tsai(pm, pf, volume_fraction, aspect_ratio)
+        Cavg = S.orientation_average(Cmt, a2; closure_type = closure, mandel)
     end
     
-    Cavg = S.orientation_average(Cmt, a2; closure_type = closure, mandel)
+    
     # @info "Cavg" 
     # display(Cavg)
 

@@ -137,11 +137,11 @@ kwargs:
 
 """
 function mori_tanaka(pm::IsotropicElasticParameters, 
-                                         fibers::AbstractVector{<:FiberPhase}, 
-                                         a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
-                                         closure_type = IBOF,
-                                         mandel = true,
-                                         symmetrize = true)
+                    fibers::AbstractVector{<:FiberPhase}, 
+                    a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
+                    closure_type = IBOF,
+                    mandel = true,
+                    symmetrize = true)
 
     I6 = LinearAlgebra.I(6)
     
