@@ -139,8 +139,7 @@ function effective_stiffness_mori_tanaka(pm::IsotropicElasticParameters,
     S = [convert_3333_to_66(eshelby_tensor(fiber.shape, νₘ, fiber.aspect_ratio); mandel) for fiber in fibers]
 
     Af = [inv(I6 + S[i] * inv(Cm) * ΔC[i]) for i in eachindex(S)]
-
-
+    
     A_avg = @SMatrix zeros(6,6)
     pol_A_avg = @SMatrix zeros(6,6)
     for i in eachindex(w)
@@ -148,7 +147,7 @@ function effective_stiffness_mori_tanaka(pm::IsotropicElasticParameters,
 
         w_Af_avg = orientation_average(weighted_Af, avec[i]; mandel, closure_type) 
 
-        Af_avg = inv(ΔC[i]) * w_Af_avg[i] #remove ΔC weight
+        Af_avg = inv(ΔC[i]) * w_Af_avg #remove ΔC weight
 
         A_avg += w[i] * Af_avg
         pol_A_avg += w[i] * ΔC[i] * Af_avg

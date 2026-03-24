@@ -664,8 +664,8 @@ end
     orientation_tensor =S.OrientationTensor(a11, a22) 
     Cavg = S.orientation_average(Ceff, orientation_tensor; mandel)
 
-    @info "Cavg"
-    display(Cavg)
+    # @info "Cavg"
+    # display(Cavg)
     
     #method 2
     fibers = S.FiberPhase(pf, vf, ar, S.SpheroidalInclusion())
@@ -674,8 +674,8 @@ end
                                                 mandel, 
                                                 symmetrize = true)
 
-    @info "Cavg method II"
-    display(Cavg_method_II)
+    # @info "Cavg method II"
+    # display(Cavg_method_II)
     
 
     Cavg_homopy = [13.72300436  5.12826607    3.00247743    0       0         0;
@@ -684,9 +684,9 @@ end
                     0           0             0        2.25192461   0         0;
                     0           0             0             0   2.90998018    0;
                     0           0             0             0       0     3.20117434]
-    @info "Cavg homopy"
-    display(Cavg_homopy)
-    @test all(isapprox.(Cavg, Cavg_homopy, atol =1e-4))
+    # @info "Cavg homopy"
+    # display(Cavg_homopy)
+    @test all(isapprox.(Cavg_method_II, Cavg_homopy, atol =1e-4))
     # for (ca, ca_hom) in zip(Cavg, Cavg_homopy)
     #     @test ca ≈ ca_hom
     # end
@@ -776,8 +776,8 @@ end
 
     C_avg_trans = S.orientation_average(Ceff, orientation_tensor; mandel)
     
-    @info "C_avg_trans"
-    display(C_avg_trans)
+    # @info "C_avg_trans"
+    # display(C_avg_trans)
 
     ## method II
     pf = S.TransverseIsotropicElasticParameters(E1 = 230.0, 
@@ -790,8 +790,8 @@ end
                             closure_type = S.HybridClosure,
                             mandel = true,
                             symmetrize = true)
-    @info "C avg trans method II"
-    display(C_avg_trans_II)
+    # @info "C avg trans method II"
+    # display(C_avg_trans_II)
 
     a, b, c, d, e, f, g, h, j = 21.28753957, 7.39504232, 4.60318504, 2.83807254, 3.84243603, 7.40101738, 2.69510888, 3.64095994, 4.04242938 
     C_avg_trans_homopy =  [a f e 0 0 0;
@@ -800,9 +800,9 @@ end
                            0 0 0 g 0 0;
                            0 0 0 0 h 0;
                            0 0 0 0 0 j]
-    @info "C_avg_trans_homopy"
-    display(C_avg_trans_homopy)
-    @test all(isapprox.(C_avg_trans, C_avg_trans_homopy, atol=1e-4))
+    # @info "C_avg_trans_homopy"
+    # display(C_avg_trans_homopy)
+    @test all(isapprox.(C_avg_trans_II, C_avg_trans_homopy, atol=1e-4))
 
 end
 
@@ -949,39 +949,44 @@ end
 
 end
 
-@testset "Specific" verbose = true begin
-    S = SFRPMicroMechanics
-    mandel = true
+# @testset "Specific" verbose = true begin
+#     S = SFRPMicroMechanics
+#     mandel = true
 
-    Em, num = 3.1, 0.34
-    pm = S.IsotropicElasticParameters(Em, num)
-    @info "pm"
-    display(pm)
-    Cm = S.stiffness_matrix_voigt(pm; mandel)
-    @info "Cm"
-    display(Cm)
+#     Em, num = 3.1, 0.34
+#     pm = S.IsotropicElasticParameters(Em, num)
+#     @info "pm"
+#     display(pm)
+#     Cm = S.stiffness_matrix_voigt(pm; mandel)
+#     @info "Cm"
+#     display(Cm)
 
-    Ef, nuf =  178.5, 0.05
-    pf = S.IsotropicElasticParameters(Ef, nuf)
-    @info "pf"
-    display(pf)
-    Cf = S.stiffness_matrix_voigt(pf; mandel)
-    @info "Cf"
-    display(Cf)
+#     Ef, nuf =  178.5, 0.05
+#     pf = S.IsotropicElasticParameters(Ef, nuf)
+#     @info "pf"
+#     display(pf)
+#     Cf = S.stiffness_matrix_voigt(pf; mandel)
+#     @info "Cf"
+#     display(Cf)
 
-    vf = 0.165
-    AR = 17.0
+#     vf = 0.165
+#     AR = 17.0
 
-    a2 = S.OrientationTensor(0.67, 0.23)
+#     a2 = S.OrientationTensor(0.67, 0.23)
 
-    fiber = S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())
+#     fiber = S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())
 
 
-    Cmt = S.mori_tanaka(pm, [fiber]; mandel)
-    @info "Cmt"
-    display(Cmt)
+#     Cmt = S.mori_tanaka(pm, [fiber]; mandel)
+#     @info "Cmt"
+#     display(Cmt)
 
-    Cavg = S.orientation_average(Cmt, a2; closure_type = S.IBOF)
-    @info "Cavg"
-    display(Cavg)
-end
+#     Cavg = S.orientation_average(Cmt, a2; closure_type = S.IBOF)
+#     @info "Cavg"
+#     display(Cavg)
+
+#     Ceff = S.effective_stiffness_mori_tanaka(pm, [fiber], a2)
+#     @info "Ceff"
+#     display(Ceff)
+
+# end
