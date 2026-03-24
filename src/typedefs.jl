@@ -3,7 +3,7 @@
 abstract type AbstractElasticParameters end
 
 struct IsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
-    E_modulus::T
+    E::T
     nu::T
     function IsotropicElasticParameters(E, nu)
         args = promote(E, nu)
@@ -51,17 +51,17 @@ end
 
 
 function bulk_modulus(p::IsotropicElasticParameters)
-    E, nu = p.E_modulus, p.nu
+    E, nu = p.E, p.nu
     return E / (3(1-2nu))
 end
 
 function shear_modulus(p::IsotropicElasticParameters)
-    E, nu = p.E_modulus, p.nu
+    E, nu = p.E, p.nu
     return E/ (2(1+nu))
 end
 
 function lame_constant(p::IsotropicElasticParameters)
-    return p.E_modulus * p.nu / ((1 + p.nu) * (1 - 2p.nu))
+    return p.E * p.nu / ((1 + p.nu) * (1 - 2p.nu))
 end
 
 function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
@@ -81,7 +81,7 @@ end
 
 
 function OrthotropicElasticParameters(p::IsotropicElasticParameters)
-    E, nu = p.E_modulus, p.nu
+    E, nu = p.E, p.nu
     G = E/(2(1+nu))
     return OrthotropicElasticParameters(;E1 = E,
                                          E2 = E,
@@ -205,13 +205,13 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", p::IsotropicElasticParameters)
     println(io, "Elastic Constants:")
-    println(io, "E = $(p.E_modulus)")
+    println(io, "E = $(p.E)")
     println(io, "ν = $(p.nu)")
 end
 
 
 function Base.isapprox(p1::IsotropicElasticParameters, p2::IsotropicElasticParameters; kwargs...)
-    return isapprox(p1.E_modulus, p2.E_modulus; kwargs...) &&
+    return isapprox(p1.E, p2.E; kwargs...) &&
            isapprox(p1.nu, p2.nu; kwargs...)
 end
 
@@ -348,7 +348,7 @@ end
 
 
 function stiffness_matrix_voigt(p::IsotropicElasticParameters; mandel = false)
-    E, nu = p.E_modulus, p.nu
+    E, nu = p.E, p.nu
     return isotropic_stiffness(E, nu; mandel)
 end
 

@@ -174,8 +174,8 @@ end
 function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
                     volume_fraction, aspect_ratio; mandel = true)
 
-    Em, nu_m = pm.E_modulus, pm.nu
-    Ef, nu_f = pf.E_modulus, pf.nu
+    Em, nu_m = pm.E, pm.nu
+    Ef, nu_f = pf.E, pf.nu
     vf = volume_fraction
     ar = aspect_ratio
     return halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel)
@@ -288,7 +288,7 @@ end
 
 
 function halpin_tsai(pm::IsotropicElasticParameters, pf::TransverseIsotropicElasticParameters, vf, ar)
-    Em, nu_m = pm.E_modulus, pm.nu
+    Em, nu_m = pm.E, pm.nu
     Ef1, Ef2, Gf12, Gf23, nu21_f = pf.E1, pf.E2, pf.G12, pf.G23, pf.nu21 
     nu12_f = nu21_f * Ef1 / Ef2
 

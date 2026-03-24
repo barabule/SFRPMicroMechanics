@@ -49,8 +49,8 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
                           shape::InclusionGeometry;
                           mandel = false)
                           
-    # Em, num = pm.E_modulus, pm.nu
-    # Ef, nuf = pf.E_modulus, pf.nu
+    # Em, num = pm.E, pm.nu
+    # Ef, nuf = pf.E, pf.nu
 
     alpham = cte_m.alpha1
     alphaf = cte_f.alpha1
@@ -260,8 +260,8 @@ function effective_thermal_expansion_shapery(pm::IsotropicElasticParameters,
                                            cte_f::ThermalExpansion, 
                                            volume_fraction::Real)
 
-    Em, νm = pm.E_modulus, pm.nu
-    Ef, νf = pf.E_modulus, pf.nu
+    Em, νm = pm.E, pm.nu
+    Ef, νf = pf.E, pf.nu
 
     αm = cte_m.alpha1
     αf = cte_f.alpha1

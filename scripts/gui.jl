@@ -234,7 +234,7 @@ function start_gui(;
 
 
     Em = lift(matrix_properties) do pm
-        pm.E_modulus
+        pm.E
     end
     # hlines!(ax, [Em], color = :black, linestyle = :dash)
     
