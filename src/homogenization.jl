@@ -12,7 +12,7 @@ Base.@kwdef struct FiberPhase{EP<:AbstractElasticParameters, T<:Real, IG<:Inclus
     elastic_properties::EP
     volume_fraction::T
     aspect_ratio::T
-    shape::IG
+    shape::IG = SpheroidalInclusion()
 
     function FiberPhase(ep, vf, ar, shap)
         VF, AR = promote(vf, ar)
@@ -108,7 +108,35 @@ end
 
 
 
-function effective_stiffness_mori_tanaka(pm::IsotropicElasticParameters, 
+"""
+    mori_tanaka(pm::IsotropicElasticParameters, 
+                                    fibers::AbstractVector{<:FiberPhase}, 
+                                    a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
+                                    closure_type = IBOF,
+                                    mandel = true,
+                                    symmetrize = true)
+
+Computes the effective stiffness matrix (mandel or voigt depending on value of mandel) acc. to 
+Benveniste1987
+
+
+
+pm - matrix properties
+fibers  - vector of FiberPhase(s) - for each fiber contains  - elastic properties (isotropic, transvers iso or ortho)
+        volume fractions, aspect ratios and shapes
+
+a  - is either a OrientationTensor or a vector of them (one for each fiber)
+
+kwargs:
+     closure_type 
+     mandel - treat all stiffness matrices as mandel (true) or voigt (false)
+     symmetrize - symmetrize the resultin stiffness matrix  to produce physical results
+
+
+
+
+"""
+function mori_tanaka(pm::IsotropicElasticParameters, 
                                          fibers::AbstractVector{<:FiberPhase}, 
                                          a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
                                          closure_type = IBOF,
@@ -294,7 +322,12 @@ function halpin_tsai(pm::IsotropicElasticParameters, pf::TransverseIsotropicElas
     return halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu12_f, Em, nu_m, vf, ar)
 end
 
-
+function halpin_tsai(pm::IsotropicElasticParameters, fiber::FiberPhase)
+    pf = fiber.elastic_properties
+    vf = fiber.volume_fraction
+    ar = fiber.aspect_ratio
+    return halpin_tsai(pm, pf, vf, ar)
+end
 
 #######    ORIENTATION AVERAGING        ###############
 

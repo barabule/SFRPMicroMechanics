@@ -669,7 +669,7 @@ end
     
     #method 2
     fibers = S.FiberPhase(pf, vf, ar, S.SpheroidalInclusion())
-    Cavg_method_II = S.effective_stiffness_mori_tanaka(pm, [fibers], orientation_tensor; 
+    Cavg_method_II = S.mori_tanaka(pm, [fibers], orientation_tensor; 
                                                 closure_type = S.HybridClosure, 
                                                 mandel, 
                                                 symmetrize = true)
@@ -786,7 +786,7 @@ end
                                                 nu23 = 0.39,
                                                 G12 = G12_c)
     fibers = [S.FiberPhase(pf, vf, ar, S.SpheroidalInclusion())]
-    C_avg_trans_II = S.effective_stiffness_mori_tanaka(pm, fibers, orientation_tensor;
+    C_avg_trans_II = S.mori_tanaka(pm, fibers, orientation_tensor;
                             closure_type = S.HybridClosure,
                             mandel = true,
                             symmetrize = true)
@@ -985,7 +985,7 @@ end
 #     @info "Cavg"
 #     display(Cavg)
 
-#     Ceff = S.effective_stiffness_mori_tanaka(pm, [fiber], a2)
+#     Ceff = S.mori_tanaka(pm, [fiber], a2)
 #     @info "Ceff"
 #     display(Ceff)
 
