@@ -582,7 +582,7 @@ end
 
 
 
-function decompose_eigenvalue(a::AbstractOrientationTensor)
+function decompose(a::AbstractOrientationTensor)
     if isa(a, OrientationTensor)
         return (;tensor = a, rotation = one(SymmetricTensor{2,3}))
     end

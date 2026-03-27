@@ -20,12 +20,28 @@ include("analyse.jl")
 
 
 # Re-export main functions for the user
-export mori_tanaka, FiberPhase
-export IsotropicElasticParameters, OrthotropicElasticParameters, stiffness_matrix_voigt, extract_orthotropic_constants
-export is_isotropic, compute_orthotropic_properties
-export eshelby_tensor, SphericalInclusion, SpheroidalInclusion, DiscInclusion, ThinDiscInclusion, NeedleInclusion
-export ThermalExpansion, halpin_tsai, orientation_average, mori_tanaka
+export mori_tanaka
+export FiberPhase
+#elastic 
+export IsotropicElasticParameters, OrthotropicElasticParameters, TransverseIsotropicElasticParameters
+export stiffness_matrix_voigt, extract_orthotropic_constants
+
+#inclusions
+export eshelby_tensor, SphericalInclusion, SpheroidalInclusion
+export DiscInclusion, ThinDiscInclusion, NeedleInclusion
+
+export ThermalExpansion, compute_all_thermal_expansions
+
+export halpin_tsai, orientation_average
+#util
 export apparent_modulus
-export LinearClosure, QuadraticClosure, HybridClosure, HL1Closure, HL2Closure, ORF, ORS, ORL, ORFM, ORW, ORW3, IBOF
+
+#closures
+export LinearClosure, QuadraticClosure, HybridClosure, HL1Closure, HL2Closure
+export ORF, ORS, ORL, ORFM, ORW, ORW3, IBOF
+
+
+export OrientationTensor, FullOrientationTensor, decompose
+
 
 end # module SFRPMicroMechanics

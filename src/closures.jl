@@ -225,7 +225,7 @@ struct ORW3 <: AbstractOrthotropicClosure end
 struct ORFM <: AbstractOrthotropicClosure end
 
 function closure(a::AbstractOrientationTensor, CT::Type{<:AbstractOrthotropicClosure})
-    res = decompose_eigenvalue(a) #eigenvalue decomposition and rotation matrix 3x3
+    res = decompose(a) #eigenvalue decomposition and rotation matrix 3x3
     aeig = res.tensor
     R33 = res.rotation
     R66 = convert_rot_33_to_66(R33) #rotation matrix 6x6 voigt
