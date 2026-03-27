@@ -990,3 +990,29 @@ end
 #     display(Ceff)
 
 # end
+
+
+@testset "Orientation Tensor Constructor" verbose=true begin
+    S = SFRPMicroMechanics
+    #we get a lot of erroring in the case of isotropic orientation tensor
+    #probably the tolerance is too tight
+    try
+        a = S.OrientationTensor(0.3333, 0.3333) 
+
+        @test true
+    catch
+        @info "Orientation tensor constructor"
+        @test false
+        
+    end
+
+    try 
+
+        a = S.FullOrientationTensor(0.3333, 0.0, 0.3333, 0.0, 0.3333)
+        @test true
+    catch
+        @info "FullOrientationTensor loose isotropic"
+        @test false
+    end
+
+end

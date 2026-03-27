@@ -511,6 +511,11 @@ function extract_orthotropic_constants(C_66::AbstractMatrix; mandel = true)
    
 end
 
+
+
+#####ORIENTATION TENSORS 
+
+
 abstract type AbstractOrientationTensor end
 
 
@@ -521,6 +526,11 @@ struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     function OrientationTensor(a11, a22)
         args = promote(a11, a22)
         T = eltype(args)
+        #special case isotropic with loose tolerances
+        #this comes up constantly
+        if a11 ≈ a22 && (abs(1/3 - a11)<1e-4)
+            return new{T}(T(1/3), T(1/3))
+        end
         @assert 1/3 <= a11 <= 1 "a11 must be between 1/3 and 1!"
         delta = sqrt(eps(T))
         @assert 1/2*(1 - a11)-delta <= a22 <= min(a11, 1-a11)+delta "a22 must be smaller than a11, and larger than a33!"
@@ -549,6 +559,10 @@ struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
     function FullOrientationTensor(a1, a2, a4, a5, a6)
         args= promote(a1, a2, a4, a5, a6)
         T = eltype(args)
+        #special case
+        any((a1, a2) .≈ 1/3) && return OrientationTensor(T(1/3), T(1/3)) 
+
+        @assert 0<= a1 && 0<= a2 "a1 and a2 must be positive!"
         @assert 1-a1-a2>=0 "a1 +a2 must be <=1 !"
         new{T}(args...)
     end
@@ -560,16 +574,12 @@ function get_all_coefficients(a::FullOrientationTensor)
 end
 
 
-function FullOrientationTensor(;a1 = nothing, a2 = nothing, a4 = nothing, a5 = nothing, a6 = nothing)
-    @assert !(isnothing(a1) || isnothing(a2) || isnothing(a4) || isnothing(a5) || isnothing(a6))
+function FullOrientationTensor(;a11 = nothing, a22 = nothing, a23 = nothing, a13 = nothing, a12 = nothing)
+    @assert !(isnothing(a11) || isnothing(a22) || isnothing(a23) || isnothing(a13) || isnothing(a12))
+    a1, a2, a4, a5, a6 = a11, a22, a23, a13, a12
     return FullOrientationTensor(a1, a2, a4, a5, a6)
 end
 
-
-function FullOrientationTensor(a::OrientationTensor{T}) where T
-    a4, a5, a6 = 0, 0, 0
-    return FullOrientationTensor(a.a11, a.a22, a4, a5, a6)
-end
 
 
 function decompose_eigenvalue(a::AbstractOrientationTensor)
@@ -593,16 +603,16 @@ end
 function Base.show(io::IO, ::MIME"text/plain", p::T) where {T<:AbstractOrientationTensor}
     println(io, "Orientation Tensor")
     if isa(p, OrientationTensor)
-        println(io, "A1 = $(p.a11)")
-        println(io, "A2 = $(p.a22)")
-        println(io, "A2 = $(1 - p.a11 - p.a22)")
+        println(io, "A11 = $(p.a11)")
+        println(io, "A22 = $(p.a22)")
+        println(io, "A33 = $(1 - p.a11 - p.a22)")
     elseif isa(p, FullOrientationTensor)
-        println(io, "A1 = $(p.a1)")
-        println(io, "A2 = $(p.a2)")
-        println(io, "A3 = $(1 - p.a1 - p.a2)")
-        println(io, "A4 = $(p.a4)")
-        println(io, "A5 = $(p.a5)")
-        println(io, "A6 = $(p.a6)")
+        println(io, "A11 = $(p.a1)")
+        println(io, "A22 = $(p.a2)")
+        println(io, "A33 = $(1 - p.a1 - p.a2)")
+        println(io, "A23 = $(p.a4)")
+        println(io, "A13 = $(p.a5)")
+        println(io, "A12 = $(p.a6)")
     end
 end
 
@@ -616,9 +626,6 @@ function to_matrix(a::AbstractOrientationTensor)
                      a5 a4 a3])
 end
 
-function OrientationTensor(afull::FullOrientationTensor)
-    lambda = LinearAlgebra.eigvals(to_matrix(afull))
-    return OrientationTensor(lambda[3], lambda[2])
-end
+
 
 
