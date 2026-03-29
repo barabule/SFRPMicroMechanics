@@ -44,8 +44,8 @@ function start_gui(;
             )
 
     orientation_sliders = SliderGrid(fig,
-            (label = "A₁₁", range = (0.33:0.01:1.0), startvalue = 0.7),
-            (label = "A₂₂", range = (0.15:0.01:0.3), startvalue = 0.2),
+            (label = "A₁₁", range = (0.334:0.001:1.0), startvalue = 0.7),
+            (label = "A₂₂", range = (0.15:0.001:0.3), startvalue = 0.2),
             width = BAR_WIDTH/2
     )
 
@@ -96,7 +96,7 @@ function start_gui(;
             (label = "G₁₂ [GPa]", range = (1.0:0.5:200.0), format = "{:.1f}", startvalue = 50.0),
             (label = "α₁", range = (-5:1:50), startvalue = 5),
             (label = "α₂", range = (-5:1:50), startvalue = 5),
-            (label = "α₃", range = (-5:1:50), startvalue = 5),
+            # (label = "α₃", range = (-5:1:50), startvalue = 5),
             (label = "vol_f", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
             (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
             width = BAR_WIDTH/2,
@@ -179,29 +179,25 @@ function start_gui(;
         G12 = vals[5]
         alfa1 = vals[6]
         alfa2 = vals[7]
-        alfa3 = vals[8]
-        vf = vals[9]
-        ar = vals[10]
+        # alfa3 = vals[8]
+        vf = vals[8]
+        ar = vals[9]
         G23 = E2/ (2*(1+nu23))
         G31 = G12
         nu31 = nu21
         fiber_elastic_props[] = S.TransverseIsotropicElasticParameters(;E1, E2, nu21, nu23, nu31, G12) 
         vol_frac[] = vf
         aspect_ratio[] = ar
-        cte_fiber[] = S.ThermalExpansion(alfa1 * 1e-6, alfa2 * 1e-6, alfa3 * 1e-6)
+        cte_fiber[] = S.ThermalExpansion(alfa1 * 1e-6, alfa2 * 1e-6)
     end
 
     on(orientation_sliders.sliders[1].value) do a11
          
-        a22_max = min(1 - a11, a11)
-        a22_min = round((1-a11) / 2 + 0.01; digits= 2)
-        # a22_min = round(max(1-a11, a11)/2; digits= 2)
-        # a22 = orientation_tensor_observables[2][]
-        # a22 = clamp(a22_min, a22_max, a22)
-        a22 = 1/2 * (a22_min + a22_max)
+        valid_val = get_valid_orientation_tensor(a11)
+        a22_new, a22_min, a22_max = valid_val.a22, valid_val.min, valid_val.max
         a22_slider = orientation_sliders.sliders[2]
-        a22_slider.range = a22_min:0.01:a22_max
-        orientation_tensor_observables[2][] = set_close_to!(a22_slider, a22)
+        a22_slider.range[] = a22_min : 0.001 : a22_max
+        orientation_tensor_observables[2][] = set_close_to!(a22_slider, valid_val.a22)
     end
 
     
@@ -390,6 +386,171 @@ function cte_to_text(cte_eff)
     println(io, "Mori Tanaka:\nα₁ = $(alpha1_mt)ppm/°C\nα₂ = $(alpha2_mt)ppm/°C\nα₃ = $(alpha3_mt)ppm/°C")
     
     return String(take!(io))
+end
+
+
+function get_valid_orientation_tensor(a11; tol = 1e-3)
+    
+    a22_min = 1/2 * (1 - a11)
+    a22_max = min((1-a11), a11)
+
+    if abs(a22_max - a22_min)<tol 
+        a22_new =  0.3333
+    else
+        a22_new =  1/2 * (a22_min + a22_max)
+    end
+
+    return (;a22 = a22_new, min = min(a22_min, a22_max), max = max(a22_min, a22_max))
+end
+
+
+function LogRelativeSlider(fig_or_pos; 
+                startvalue = 1.0, 
+                range = (1e-3, 1e6), 
+                label_prefix = "Value: ",
+                width = 300.0,
+                height = 30.0,
+                # label_width = ceil(0.6 * width),
+                bg_color = :gray95,
+                strokecolor = :gray80,
+                drag_active_color = :skyblue,
+                drag_deactive_color = :lightgray,
+                )
+    # Create a nested layout in the target slot to manage the stacking of Box/Label/Textbox
+    gl = fig_or_pos[] = GridLayout(width =width, height = height, tellwidth = true)
+    
+    # State Observables
+    val = Observable(Float64(startvalue))
+    dragging = Observable(false)
+    editing = Observable(false)
+    fill_p = Observable(0.5)
+    
+    # 1. Background Track
+    bg = Box(gl[1, 1], color = bg_color, strokecolor = strokecolor, width = width)
+    
+    # 2. The Fill Bar (Visible only when not editing)
+    bar = Box(gl[1, 1], 
+        color = lift(d -> d ? drag_active_color : drag_deactive_color, dragging),
+        width = lift(p -> Relative(p), fill_p),
+        halign = :left,
+        visible = lift(!, editing),
+        tellwidth = false,
+    )
+    
+    # 3. The Text Label (Visible only when not editing)
+    lbl = Label(gl[1, 1], lift(v -> "$label_prefix$(round(v, digits=3))", val),
+            visible = lift(!, editing),
+            halign = :left,        # Align text to the left of the box
+            padding = (30, 30, 0, 0), # Give it a little breathing room from the edge
+            tellwidth = false,
+        )
+    
+    # WORKAROUND: Explicitly use RGBAf for all color states to avoid MethodErrors
+    tbox = Textbox(gl[1, 1], 
+        placeholder = "Type...",
+        width = lift(e -> e ? width : 0.0, editing), 
+        height = lift(e -> e ? height : 0.0, editing),
+        textcolor = lift(e -> e ? RGBAf(0, 0, 0, 1) : RGBAf(0, 0, 0, 0), editing),
+        boxcolor = lift(e -> e ? RGBAf(1, 1, 1, 1) : RGBAf(0, 0, 0, 0), editing),
+        bordercolor = lift(e -> e ? RGBAf(0.5, 0.5, 0.5, 1) : RGBAf(0, 0, 0, 0), editing),
+        halign = :center,
+        valign = :center
+    )
+
+    on(tbox.stored_string) do s
+        parsed = tryparse(Float64, s)
+        if !isnothing(parsed)
+            val[] = clamp(parsed, range[1], range[2])
+        end
+        editing[] = false
+        try tbox.focused[] = false catch; end # Release focus
+    end
+
+    # Event Interaction Logic
+    parent_scene = Makie.get_topscene(fig_or_pos)
+    last_click_time = Ref(0.0)
+    last_mouse_pos = Ref(Point2f(0))
+    
+    on(events(parent_scene).mousebutton) do event
+        # Detect if mouse is inside the widget using 'computedbbox'
+        bbox = bg.layoutobservables.computedbbox[]
+        mouse_pos = events(parent_scene).mouseposition[]
+        mouse_inside = mouse_pos ∈ bbox
+
+        if event.button == Mouse.left
+            if event.action == Mouse.press && mouse_inside
+                t = time()
+                # Double Click Detection
+                if t - last_click_time[] < 0.3
+                    editing[] = true
+                    tbox.displayed_string[] = string(round(val[], digits=4))
+                    # Trigger focus so the user can type immediately
+                    try tbox.focused[] = true catch; end 
+                else
+                    if !editing[]
+                        dragging[] = true
+                        last_mouse_pos[] = mouse_pos
+                    end
+                end
+                last_click_time[] = t
+            elseif event.action == Mouse.release
+                dragging[] = false
+                fill_p[] = 0.5 # Visual "joystick" reset
+            end
+        end
+        # Consume events if we are typing so we don't trigger other shortcuts
+        return Consume(editing[])
+    end
+
+    
+    on(events(parent_scene).mouseposition) do pos
+    if dragging[] && !editing[]
+        delta = pos[1] - last_mouse_pos[][1]
+        sensitivity = ispressed(parent_scene, Keyboard.left_shift) ? 0.0005 : 0.005
+        
+        # 1. Get current value
+        curr = val[]
+        
+        # 2. Hybrid Logic: 
+        # If the value is tiny or zero, we use a small linear step to "kickstart" it.
+        # Otherwise, we use the logarithmic scaling.
+        epsilon = 1e-3 
+        
+        if abs(curr) < epsilon
+            # Linear "kick" to get away from zero
+            new_val = curr + (delta * sensitivity)
+        else
+            # Standard Logarithmic scaling
+            # We use sign(curr) so it works for negative ranges too!
+            new_val = curr * 10^(delta * sensitivity * sign(curr))
+        end
+        
+        val[] = clamp(new_val, range[1], range[2])
+        fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
+        last_mouse_pos[] = pos
+    end
+    return Consume(false)
+end
+
+    on(events(parent_scene).mouseposition) do pos
+        if dragging[] && !editing[]
+            delta = pos[1] - last_mouse_pos[][1]
+            
+            # Sensitivity multipliers: Shift for fine-tuning
+            sensitivity = ispressed(parent_scene, Keyboard.left_shift) ? 0.0005 : 0.005
+            
+            # Apply Logarithmic Update
+            new_val = val[] * 10^(delta * sensitivity)
+            val[] = clamp(new_val, range[1], range[2])
+            
+            # Update Visual Fill
+            fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
+            last_mouse_pos[] = pos
+        end
+        return Consume(false)
+    end
+
+    return (value = val, layout = gl)
 end
 
 

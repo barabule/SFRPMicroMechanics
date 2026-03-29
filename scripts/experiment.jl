@@ -1,6 +1,6 @@
 
 
-module Experiment
+module RelativeSlider
 
 using GLMakie
 import Makie: Relative, Auto, Consume
@@ -11,13 +11,14 @@ function LogRelativeSlider(fig_or_pos;
                 label_prefix = "Value: ",
                 width = 300.0,
                 height = 30.0,
+                # label_width = ceil(0.6 * width),
                 bg_color = :gray95,
                 strokecolor = :gray80,
                 drag_active_color = :skyblue,
                 drag_deactive_color = :lightgray,
                 )
     # Create a nested layout in the target slot to manage the stacking of Box/Label/Textbox
-    gl = fig_or_pos[] = GridLayout()
+    gl = fig_or_pos[] = GridLayout(width =width, height = height, tellwidth = true)
     
     # State Observables
     val = Observable(Float64(startvalue))
@@ -26,21 +27,23 @@ function LogRelativeSlider(fig_or_pos;
     fill_p = Observable(0.5)
     
     # 1. Background Track
-    bg = Box(gl[1, 1], color = bg_color, strokecolor = strokecolor)
+    bg = Box(gl[1, 1], color = bg_color, strokecolor = strokecolor, width = width)
     
     # 2. The Fill Bar (Visible only when not editing)
     bar = Box(gl[1, 1], 
         color = lift(d -> d ? drag_active_color : drag_deactive_color, dragging),
         width = lift(p -> Relative(p), fill_p),
         halign = :left,
-        visible = lift(!, editing)
+        visible = lift(!, editing),
+        tellwidth = false,
     )
     
     # 3. The Text Label (Visible only when not editing)
     lbl = Label(gl[1, 1], lift(v -> "$label_prefix$(round(v, digits=3))", val),
             visible = lift(!, editing),
             halign = :left,        # Align text to the left of the box
-            padding = (30, 0, 0, 0) # Give it a little breathing room from the edge
+            padding = (30, 30, 0, 0), # Give it a little breathing room from the edge
+            tellwidth = false,
         )
     
     # WORKAROUND: Explicitly use RGBAf for all color states to avoid MethodErrors
@@ -99,6 +102,8 @@ function LogRelativeSlider(fig_or_pos;
         # Consume events if we are typing so we don't trigger other shortcuts
         return Consume(editing[])
     end
+
+    
     on(events(parent_scene).mouseposition) do pos
     if dragging[] && !editing[]
         delta = pos[1] - last_mouse_pos[][1]
@@ -219,17 +224,17 @@ function main3()
     end
 
     # -- Setup the Main Figure --
-    fig = Experiment.Figure(size = (1000, 600))
-    Experiment.colsize!(fig.layout, 1, Experiment.Relative(0.3)) # Allocate 30% width for controls
+    fig = RelativeSlider.Figure(size = (1000, 600))
+    RelativeSlider.colsize!(fig.layout, 1, RelativeSlider.Relative(0.3)) # Allocate 30% width for controls
 
     # -- 1. The Sliders (Controls) --
-    controls_grid = fig[1, 1] = Experiment.GridLayout( tellheight = false)
+    controls_grid = fig[1, 1] = RelativeSlider.GridLayout( tellheight = false)
 
     # Define parameters for 4 different controls
     params = [
         (name = "Frequency", start = 1.0,  range = (0.1, 10.0)),
         (name = "Amplitude", start = 5.0,  range = (0.1, 10.0)),
-        (name = "Phase Shift", start = 0.0, range = (-1.0, 1.0)),
+        (name = "Phase Shift", start = 0.0, range = (-2pi, 2pi)),
         (name = "Decay Rate", start = 0.2,  range = (0.01, 2.0))
     ]
 
@@ -238,7 +243,7 @@ function main3()
 
     for (i, p) in enumerate(params)
         # Create the widget and place it in a new row (i)
-        slider_data = Experiment.LogRelativeSlider(
+        slider_data = RelativeSlider.LogRelativeSlider(
             controls_grid[i, 1], 
             startvalue = p.start, 
             range = p.range, 
@@ -249,29 +254,29 @@ function main3()
     end
 
     # Fine-tune the control grid layout
-    Experiment.rowgap!(controls_grid, 5) # No vertical gap for a tight list
+    RelativeSlider.rowgap!(controls_grid, 5) # No vertical gap for a tight list
     # Experiment.colsize!(controls_grid, 1, Experiment.Fixed(800))
     # -- 2. The Master Observable and Plot --
-    ax = Experiment.Axis(fig[1, 2], title = "Decaying Sine Control", xlabel = "Time", ylabel = "Amplitude")
+    ax = RelativeSlider.Axis(fig[1, 2], title = "Decaying Sine Control", xlabel = "Time", ylabel = "Amplitude")
     # Set a fixed range for a better "Blender-like" feeling
-    Experiment.ylims!(ax, -10, 10) 
+    RelativeSlider.ylims!(ax, -10, 10) 
 
     # Create the time vector
     t = range(0, 10, length=1000)
 
     # The MAGIC: Combine all 4 observables into a single "state" tuple
-    all_values = Experiment.lift(outputs["Frequency"], outputs["Amplitude"], outputs["Phase Shift"], outputs["Decay Rate"]) do f, a, p, d
+    all_values = RelativeSlider.lift(outputs["Frequency"], outputs["Amplitude"], outputs["Phase Shift"], outputs["Decay Rate"]) do f, a, p, d
         return (f, a, p, d) # This tuple updates whenever ANY value changes
     end
 
     # Lift the plotting function to update whenever the state changes
-    data = Experiment.lift(p -> decaying_sine(t, p), all_values)
+    data = RelativeSlider.lift(p -> decaying_sine(t, p), all_values)
 
     # Add the line plot
-    Experiment.lines!(ax, t, data, color = :royalblue, linewidth = 2)
+    RelativeSlider.lines!(ax, t, data, color = :royalblue, linewidth = 2)
 
     # Set the final layout
-    Experiment.colgap!(fig.layout, 10) # Simple gap between controls and plot
+    RelativeSlider.colgap!(fig.layout, 10) # Simple gap between controls and plot
 
     fig
 
