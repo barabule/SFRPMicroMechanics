@@ -560,16 +560,20 @@ struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
         #special case
         a1, a2, a4, a5, a6 = args    
         #a11 and a22 must be positive 
-        clamp(a1, T(0), T(1))
-        clamp(a2, T(0), T(1))
+        
         a3 = 1 -a1 -a2
-        #aij^2 <= aii * ajj <=> -aii*ajj <= aij <= sqrt(aii*ajj)
-        l4 = sqrt(a2*a3)
-        l5 = sqrt(a1*a3)
-        l6 = sqrt(a1*a2)
-        clamp(a4, -l4, l4)
-        clamp(a5, -l5, l5)
-        clamp(a6, -l6, l6)
+        m = SMatrix{3,3}([a1 a6 a5;
+                          a6 a2 a4;
+                          a5 a4 a3])
+        λ, V = eigen(m)
+        Σ = sum(λ)
+        λ = λ * 1/Σ
+        Λ = SMatrix{3,3}([λ[1] 0 0;
+                          0 λ[2] 0;
+                          0 0  λ[3]])
+        m_new = V * Λ * V'
+        a1, a2, a4, a5, a6 = m_new[1,1], m_new[2,2], m_new[2,3], m_new[1,3], m_new[1,2] 
+       
 
         new{T}(a1, a2, a4, a5, a6)
     end
