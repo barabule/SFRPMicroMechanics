@@ -25,6 +25,7 @@ function LogRelativeSlider(fig_or_pos;
     dragging = Observable(false)
     editing = Observable(false)
     fill_p = Observable(0.5)
+    range = Observable(range)
     
     # 1. Background Track
     bg = Box(gl[1, 1], color = bg_color, strokecolor = strokecolor, width = width)
@@ -61,7 +62,7 @@ function LogRelativeSlider(fig_or_pos;
     on(tbox.stored_string) do s
         parsed = tryparse(Float64, s)
         if !isnothing(parsed)
-            val[] = clamp(parsed, range[1], range[2])
+            val[] = clamp(parsed, range[][1], range[][2])
         end
         editing[] = false
         try tbox.focused[] = false catch; end # Release focus
@@ -126,7 +127,7 @@ function LogRelativeSlider(fig_or_pos;
             new_val = curr * 10^(delta * sensitivity * sign(curr))
         end
         
-        val[] = clamp(new_val, range[1], range[2])
+        val[] = clamp(new_val, range[][1], range[][2])
         fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
         last_mouse_pos[] = pos
     end
@@ -142,7 +143,7 @@ end
             
             # Apply Logarithmic Update
             new_val = val[] * 10^(delta * sensitivity)
-            val[] = clamp(new_val, range[1], range[2])
+            val[] = clamp(new_val, range[][1], range[][2])
             
             # Update Visual Fill
             fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
@@ -151,7 +152,7 @@ end
         return Consume(false)
     end
 
-    return (value = val, layout = gl)
+    return (value = val, layout = gl, range)
 end
 
 end #module
@@ -240,6 +241,7 @@ function main3()
 
     # We need a Dict to store the value Observables from our function
     outputs = Dict()
+    ranges = Dict()
 
     for (i, p) in enumerate(params)
         # Create the widget and place it in a new row (i)
@@ -251,6 +253,7 @@ function main3()
         )
         # Store the .value Observable
         outputs[p.name] = slider_data.value
+        ranges[p.name] = slider_data.range
     end
 
     # Fine-tune the control grid layout

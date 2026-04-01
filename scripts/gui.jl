@@ -94,8 +94,8 @@ function start_gui(;
             (label = "ν₂₁", range = (0.01:0.01:0.2), format = "{:.2f}", startvalue = 0.03),
             (label = "ν₃₂", range = (0.2:0.01:0.49), format = "{:.2f}", startvalue = 0.39),
             (label = "G₁₂ [GPa]", range = (1.0:0.5:200.0), format = "{:.1f}", startvalue = 50.0),
-            (label = "α₁", range = (-5:1:50), startvalue = 5),
-            (label = "α₂", range = (-5:1:50), startvalue = 5),
+            (label = "αₗ", range = (-5:1:50), startvalue = 5),
+            (label = "αₜ", range = (-5:1:50), startvalue = 5),
             # (label = "α₃", range = (-5:1:50), startvalue = 5),
             (label = "vol_f", range = (0.01:0.01:1.0), format = "{:.2f}", startvalue = 0.1),
             (label = "aspect", range = (0.1:0.1:100.0), format = "{:.2f}", startvalue = 10.0),
@@ -294,6 +294,89 @@ function start_gui(;
 end
 
 
+#################################################################################################
+
+function gui2()
+
+    fig = Figure()
+    ax_plot = Axis(fig[1,1])
+
+    param_matrix = [
+        (;name = "Matrix Modulus", start = 2.0, range = (0.1, 1e4)),
+        (;name = "Matrix Poisson", start = 0.3, range = (-1, 0.5)),
+        (;name = "Density", start = 1.0, range = (1e-3, 1e2)),
+    ]
+
+
+    param_current_fiber_trans = [
+        (;name = "E1", start = 70.0, range = (1.0, 1000.0)),
+        (;name = "E2", start = 70.0, range = (1.0, 1000.0)),
+        (;name = "nu21", start = 0.22, range= (-1, 0.5)),
+        (;name = "nu23", start =0.22, range = (-1, 0.5)),
+        (;name = "G12", start = 70/(2(1+0.22)), range = (1, 1000)),
+        (;name = "Density", start = 1.0, range = (1e-3, 1e2)),
+        (;name = "fraction", start = 0.1, range = (0, 1)),
+        (;name = "aspect", start = 1.0, range = (1e-3, 1e3)),
+        (;name = "a11", start =0.7, range = (1/3, 1)),
+        (;name = "a22", start = 0.2, range = (0.15, 0.3))
+    ]
+
+    param_current_fiber_iso = [
+        (;name = "E", start = 70.0, range = (1.0, 1000.0)),
+        (;name = "nu", start = 0.22, range= (-1, 0.5)),
+        (;name = "Density", start = 1.0, range = (1e-3, 1e2)),
+        (;name = "fraction", start = 0.1, range = (0, 1)),
+        (;name = "aspect", start = 1.0, range = (1e-3, 1e3)),
+        (;name = "a11", start =0.7, range = (1/3, 1)),
+        (;name = "a22", start = 0.2, range = (0.15, 0.3))
+    ]
+
+    closure_menu = Menu(fig, options=[("Linear", S.LinearClosure), 
+                                      ("Quadratic", S.QuadraticClosure),
+                                      ("Hybrid", S.HybridClosure),
+                                      ("IBOF", S.IBOF),
+                                      ("ORS", S.ORS),
+                                      ("ORF", S.ORF),
+                                      ("ORW", S.ORW),
+                                      ("ORW3", S.ORW3),
+                                      ("ORFM", S.ORFM),
+                                      ("ORL", S.ORL),
+                                      ("HL1", S.HL1Closure),
+                                    #   ("HL2", S.HL2Closure), #Nans
+                                      ], 
+                                        default = "IBOF")
+
+    inclusion_menu = Menu(fig, options = [("Spheroidal", S.SpheroidalInclusion()),
+                                          ("Sphere", S.SphericalInclusion()),
+                                          ("Needle", S.NeedleInclusion()),
+                                          ("Disk", S.DiscInclusion()),
+                                          ("Thin Disk", S.ThinDiscInclusion())],
+                                        default = "Spheroidal")
+
+    
+    matrix_controls = GridLayout(fig[2,1], tellwidth = false)
+    for (i, p) in enumerate(param_matrix)
+        # Create the widget and place it in a new row (i)
+        slider_data = LogRelativeSlider(
+            matrix_controls[i, 1], 
+            startvalue = p.start, 
+            range = p.range, 
+            label_prefix = "$(p.name): "
+        )
+        # Store the .value Observable
+        outputs[p.name] = slider_data.value
+        ranges[p.name] = slider_data.range
+    end
+
+
+
+
+
+    fig
+end
+
+
+
 function compute_emod(pm::S.IsotropicElasticParameters, 
                       pf::S.AbstractElasticParameters, 
                       volume_fraction, 
@@ -424,6 +507,7 @@ function LogRelativeSlider(fig_or_pos;
     dragging = Observable(false)
     editing = Observable(false)
     fill_p = Observable(0.5)
+    range = Observable(range)
     
     # 1. Background Track
     bg = Box(gl[1, 1], color = bg_color, strokecolor = strokecolor, width = width)
@@ -460,7 +544,7 @@ function LogRelativeSlider(fig_or_pos;
     on(tbox.stored_string) do s
         parsed = tryparse(Float64, s)
         if !isnothing(parsed)
-            val[] = clamp(parsed, range[1], range[2])
+            val[] = clamp(parsed, range[][1], range[][2])
         end
         editing[] = false
         try tbox.focused[] = false catch; end # Release focus
@@ -525,7 +609,7 @@ function LogRelativeSlider(fig_or_pos;
             new_val = curr * 10^(delta * sensitivity * sign(curr))
         end
         
-        val[] = clamp(new_val, range[1], range[2])
+        val[] = clamp(new_val, range[][1], range[][2])
         fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
         last_mouse_pos[] = pos
     end
@@ -541,7 +625,7 @@ end
             
             # Apply Logarithmic Update
             new_val = val[] * 10^(delta * sensitivity)
-            val[] = clamp(new_val, range[1], range[2])
+            val[] = clamp(new_val, range[][1], range[][2])
             
             # Update Visual Fill
             fill_p[] = clamp(fill_p[] + (delta / 400.0), 0.0, 1.0)
@@ -550,7 +634,7 @@ end
         return Consume(false)
     end
 
-    return (value = val, layout = gl)
+    return (value = val, layout = gl, range)
 end
 
 

@@ -526,15 +526,13 @@ struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     function OrientationTensor(a11, a22)
         args = promote(a11, a22)
         T = eltype(args)
-        #special case isotropic with loose tolerances
-        #this comes up constantly
-        if a11 ≈ a22 && (abs(1/3 - a11)<1e-4)
-            return new{T}(T(1/3), T(1/3))
+        a11, a22 = args[1], args[2]
+        a11 = clamp(a11, T(1/3), T(1))
+        a22 = clamp(a22, T(1/2 * (1 - a11)), min(a11, T(1-a11)))
+        if a22 > a11 #just to make sure
+            a11, a22 = a22, a11
         end
-        @assert 1/3 <= a11 <= 1 "a11 must be between 1/3 and 1!"
-        delta = sqrt(eps(T))
-        @assert 1/2*(1 - a11)-delta <= a22 <= min(a11, 1-a11)+delta "a22 must be smaller than a11, and larger than a33!"
-        return new{T}(args...)
+        return new{T}(a11, a22)
     end
 end
 
@@ -560,11 +558,20 @@ struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
         args= promote(a1, a2, a4, a5, a6)
         T = eltype(args)
         #special case
-        any((a1, a2) .≈ 1/3) && return OrientationTensor(T(1/3), T(1/3)) 
+        a1, a2, a4, a5, a6 = args    
+        #a11 and a22 must be positive 
+        clamp(a1, T(0), T(1))
+        clamp(a2, T(0), T(1))
+        a3 = 1 -a1 -a2
+        #aij^2 <= aii * ajj <=> -aii*ajj <= aij <= sqrt(aii*ajj)
+        l4 = sqrt(a2*a3)
+        l5 = sqrt(a1*a3)
+        l6 = sqrt(a1*a2)
+        clamp(a4, -l4, l4)
+        clamp(a5, -l5, l5)
+        clamp(a6, -l6, l6)
 
-        @assert 0<= a1 && 0<= a2 "a1 and a2 must be positive!"
-        @assert 1-a1-a2>=0 "a1 +a2 must be <=1 !"
-        new{T}(args...)
+        new{T}(a1, a2, a4, a5, a6)
     end
 end
 
