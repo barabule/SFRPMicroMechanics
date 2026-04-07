@@ -11,6 +11,7 @@ using Combinatorics: permutations
 
 # Include sub-modules
 include("typedefs.jl")
+include("orientation_tensors.jl")
 include("eshelby.jl")
 include("utils.jl")
 include("closures.jl")

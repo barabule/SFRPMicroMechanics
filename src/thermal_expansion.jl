@@ -412,6 +412,36 @@ end
 
 
 
+"""
+    compute_all_thermal_expansions(pm::IsotropicElasticParameters, #matrix 
+                                        fibers::AbstractVector{<:FiberPhase},
+                                        ctes::AbstractVector{<:ThermalExpansion},
+                                        a::AbstractOrientationTensor;
+                                        mandel= true,
+                                        average= false,
+                                        )
+
+Computes effective thermal expansion with several methods:
+    ROM - rule of mixtures
+    Turner
+    Kerner
+    Chow
+    Shapery
+    Moritanaka - 2 methods: multi fiber or simplified (1 fiber phase)
+
+Usefull to have some idea of the range of plausible CTEs.
+
+
+Returns a NamedTuple (;turner = cte_turner,
+            rom = cte_rom,
+            kerner = cte_kerner,
+            shapery = cte_shapery,
+            chow = cte_chow,
+            moritanaka = cte_mt,
+            moritanaka_simplified =cte_mt_simplified,
+            )
+                                        
+"""
 function compute_all_thermal_expansions(pm::IsotropicElasticParameters, #matrix 
                                         fibers::AbstractVector{<:FiberPhase},
                                         ctes::AbstractVector{<:ThermalExpansion},
@@ -468,6 +498,24 @@ end
 
 
 
+"""
+    averaged_fiber(fibers::AbstractVector{<:FiberPhase}, 
+                        ctes::AbstractVector{<:ThermalExpansion};
+                        mandel = true)
+
+Calculates a "best fit" isotropic fiber from the given fiber properties (elastic and thermal expansion)
+Inputs:
+    fibers - an AbstractVector of FiberPhase(s) containing elastic properties, volume fractions and aspect ratios
+    ctes - an AbstractVector of ThermalExpansion(s)
+
+kwargs: - mandel::Bool  - if true use Mandel scaling for offdiagonal elements, else Voigt
+
+Returns a NamedTuple containing averaged (isotropic) properties:
+    (;elastic_properties,
+        cte::ThermalExpansion,
+        volume_fraction,
+        aspect_ratio)
+"""
 function averaged_fiber(fibers::AbstractVector{<:FiberPhase}, 
                         ctes::AbstractVector{<:ThermalExpansion};
                         mandel = true)

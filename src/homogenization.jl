@@ -1,7 +1,7 @@
 
 """
     FiberPhase - collects fiber properties:
-        - elastic_properties - (isotropic or Orthotropic)
+        - elastic_properties - (isotropic or Orthotropic) a subtype of AbstractElasticParameters
         - volume fraction of this phase
         - aspect ratio (ratiio of longest to shortest dim)
         - shape : InclusionGeometry (one of :SphericalInclusion(), SpheroidalInclusion(), NeedleInclusion(),
