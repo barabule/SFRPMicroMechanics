@@ -1024,3 +1024,21 @@ end
     end
 
 end
+
+
+@testset "Fraction Conversions" verbose = true begin
+    S = SFRPMicroMechanics
+    N = 4
+    densities = (rand(4) .+1) .* 1.5
+
+    wf = rand(N-1) .* (1/(N+1))
+    wfm = 1 -sum(wf)
+
+    vf = S.to_volume_fractions(wf, densities)
+    wf2 =S.to_weight_fractions(vf[2:N], densities)
+    vf2 = S.to_volume_fractions(wf2[2:N], densities)
+
+    @test all([wfm, wf...] .≈ wf2)
+    @test all(vf .≈ vf2)
+
+end

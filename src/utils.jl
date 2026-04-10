@@ -78,7 +78,7 @@ function to_volume_fractions(weight_fractions::AbstractVector{T}, densities::Abs
     @assert 0 <= W <= 1 "Sum of weight fractions must be between 0 and 1!"
 
     D = (1- W) / densities[1] #start with the matrix contribution
-    volume_fractions = zeros(T, length(weight_fractions) + 1)
+    volume_fractions = zeros(T, length(densities))
     volume_fractions[1] =  D #matrix
 
     for (i,(w, rho)) in enumerate(zip(weight_fractions, view(densities, 2:N)))
@@ -114,7 +114,7 @@ function to_weight_fractions(volume_fractions::AbstractVector{T}, densities::Abs
     @assert 0<=V<=1 "Sum of volume fraction must be between 0 and 1!"
 
     D = densities[1] * (1 - V)
-    weight_fractions = zeros(T, lentgth(volume_fractions))
+    weight_fractions = zeros(T, length(densities))
     weight_fractions[1] = D
 
     for (i, (v, rho)) in enumerate(zip(volume_fractions, view(densities, 2:N)))
