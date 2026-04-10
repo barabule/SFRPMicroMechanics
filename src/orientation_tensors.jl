@@ -3,12 +3,12 @@
 
 abstract type AbstractOrientationTensor end
 
-
-struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
+# orientation tensor in principal coordinates - diagonal
+struct PrincipalOrientationTensor{T<:Real} <:AbstractOrientationTensor
     a11::T
     a22::T
 
-    function OrientationTensor(a11, a22)
+    function PrincipalOrientationTensor(a11, a22)
         args = promote(a11, a22)
         T = eltype(args)
         a11, a22 = args[1], args[2]
@@ -21,7 +21,7 @@ struct OrientationTensor{T<:Real} <:AbstractOrientationTensor
     end
 end
 
-function get_all_coefficients(a::OrientationTensor)
+function get_all_coefficients(a::PrincipalOrientationTensor)
     a1 = a.a11
     a2 = a.a22
     a3 = 1 - a1 -a2
@@ -31,7 +31,7 @@ function get_all_coefficients(a::OrientationTensor)
     return (a1, a2, a3, a4, a5, a6)
 end
 
-
+#orientation tensor in arbitrary global coordinates
 struct FullOrientationTensor{T<:Real} <:AbstractOrientationTensor
     a1::T
     a2::T #a3 is not needed because a1 + a2+ a3 =1
@@ -79,7 +79,7 @@ end
 
 
 function decompose(a::AbstractOrientationTensor)
-    if isa(a, OrientationTensor)
+    if isa(a, PrincipalOrientationTensor)
         return (;tensor = a, rotation = one(SymmetricTensor{2,3}))
     end
 
@@ -90,7 +90,7 @@ function decompose(a::AbstractOrientationTensor)
     a11, a22 , _ = lambda[idx]
     
     R = Tensor{2,3}(vecs[:, idx])
-    return (;tensor = OrientationTensor(a11, a22),
+    return (;tensor = PrincipalOrientationTensor(a11, a22),
             rotation = R)
     
 end
@@ -98,7 +98,7 @@ end
 
 function Base.show(io::IO, ::MIME"text/plain", p::T) where {T<:AbstractOrientationTensor}
     println(io, "Orientation Tensor")
-    if isa(p, OrientationTensor)
+    if isa(p, PrincipalOrientationTensor)
         println(io, "A11 = $(p.a11)")
         println(io, "A22 = $(p.a22)")
         println(io, "A33 = $(1 - p.a11 - p.a22)")

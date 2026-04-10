@@ -48,3 +48,80 @@ function convert_66_to_3333(C66; mandel = false)
     )
 
 end
+
+
+
+
+
+
+"""
+    to_volume_fractions(weight_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
+
+Convert weight fractions to volume fractions
+Inputs:
+    weight_fractions - AbstractVector of length 1 less than densities. Sum of weight_fractions must be between 0 and 1
+    densities = AbstractVector of Reals
+
+    Assumes that the 1st density is that of the matrix, whose weight fraction is (1-Σwi)
+
+Ouputs:
+    volume_fractions - Vector{T} of volume_fractions with length of densities. The 1st values is that of the matrix.
+"""
+function to_volume_fractions(weight_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
+
+    @assert all(weight_fractions .> 0) "Weigth fractions must be positive!"
+    @assert all(densities .> 0) "Densities must be positive!" 
+    @assert length(weight_fractions) == length(densities) - 1 "Length of weight fractions vector must 1 less than densities vector!"
+
+    N = length(densities)
+    W = sum(weight_fractions)
+    @assert 0 <= W <= 1 "Sum of weight fractions must be between 0 and 1!"
+
+    D = (1- W) / densities[1] #start with the matrix contribution
+    volume_fractions = zeros(T, length(weight_fractions) + 1)
+    volume_fractions[1] =  D #matrix
+
+    for (i,(w, rho)) in enumerate(zip(weight_fractions, view(densities, 2:N)))
+        vi = w / rho
+        volume_fractions[i + 1] = vi
+        D += vi
+    end
+    volume_fractions ./= D
+    return volume_fractions
+end
+
+
+
+"""
+    to_weight_fractions(volume_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
+
+
+Convert volume fractions to weight fractions.
+Inputs:
+    volume_fractions - AbstractVector of Reals, with length 1 less than densities.
+    densities - AbstractVector of Reals, 1st value is assumed matrix.
+
+Outputs:
+    weight_fractions - Vector{T} with length of densities vector. First value is that of the matrix.
+"""
+function to_weight_fractions(volume_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
+    @assert all(volume_fractions .> 0) "Volume fractions must be positive!"
+    @assert all(densities .> 0) "Densities must be positive!" 
+    @assert length(volume_fractions) == length(densities)-1 "Length of volume fraction vector must 1 less than densities vector!"
+
+    N = length(densities)
+    V = sum(volume_fractions)
+    @assert 0<=V<=1 "Sum of volume fraction must be between 0 and 1!"
+
+    D = densities[1] * (1 - V)
+    weight_fractions = zeros(T, lentgth(volume_fractions))
+    weight_fractions[1] = D
+
+    for (i, (v, rho)) in enumerate(zip(volume_fractions, view(densities, 2:N)))
+        wi = rho * v
+        D += wi
+        weight_fractions[i + 1] = wi
+    end
+    weight_fractions ./= D
+    return weight_fractions
+end

@@ -69,10 +69,10 @@ function start_gui(;
     )
 
     matrix_observables = [s.value for s in matrix_sliders.sliders]
-    matrix_properties = @lift S.IsotropicElasticParameters($(matrix_observables[1]), $(matrix_observables[2]))
+    matrix_properties = @lift S.IsotropicProperties($(matrix_observables[1]), $(matrix_observables[2]))
     # @info "matrix", matrix_properties[]
     orientation_tensor_observables = [s.value for s in orientation_sliders.sliders]
-    orientation_tensor = @lift S.OrientationTensor($(orientation_tensor_observables[1]), 
+    orientation_tensor = @lift S.PrincipalOrientationTensor($(orientation_tensor_observables[1]), 
                                                     $(orientation_tensor_observables[2]))
 
     fiber_isotropic_sliders = SliderGrid(fig,
@@ -157,7 +157,7 @@ function start_gui(;
     phi = deg2rad.(angles)
     
 
-    fiber_elastic_props = Observable{S.AbstractElasticParameters}(S.IsotropicElasticParameters(70.0, 0.22))
+    fiber_elastic_props = Observable{S.AbstractElasticProperties}(S.IsotropicProperties(70.0, 0.22))
 
     onany(fiber_iso_observables...) do vals...
         Ef = vals[1]
@@ -167,7 +167,7 @@ function start_gui(;
         ar = vals[5]
         vol_frac[] = vf
         aspect_ratio[] = ar
-        fiber_elastic_props[] = S.IsotropicElasticParameters(Ef, nuf)
+        fiber_elastic_props[] = S.IsotropicProperties(Ef, nuf)
         cte_fiber[] = S.ThermalExpansion(alfa_m * 1e-6)
     end
 
@@ -185,7 +185,7 @@ function start_gui(;
         G23 = E2/ (2*(1+nu23))
         G31 = G12
         nu31 = nu21
-        fiber_elastic_props[] = S.TransverseIsotropicElasticParameters(;E1, E2, nu21, nu23, nu31, G12) 
+        fiber_elastic_props[] = S.TransverseIsotropicProperties(;E1, E2, nu21, nu23, nu31, G12) 
         vol_frac[] = vf
         aspect_ratio[] = ar
         cte_fiber[] = S.ThermalExpansion(alfa1 * 1e-6, alfa2 * 1e-6)
@@ -377,11 +377,11 @@ end
 
 
 
-function compute_emod(pm::S.IsotropicElasticParameters, 
-                      pf::S.AbstractElasticParameters, 
+function compute_emod(pm::S.IsotropicProperties, 
+                      pf::S.AbstractElasticProperties, 
                       volume_fraction, 
                       aspect_ratio, 
-                      a2::S.OrientationTensor,
+                      a2::S.PrincipalOrientationTensor,
                       inclusion::S.InclusionGeometry,
                       closure::Type{<:S.AbstractClosure},
                       angles::AbstractVector{<:Real};
@@ -419,13 +419,13 @@ function compute_emod(pm::S.IsotropicElasticParameters,
 
 end
 
-function compute_effective_thermal_expansion(pm::S.IsotropicElasticParameters, 
-                                             pf::S.AbstractElasticParameters, 
+function compute_effective_thermal_expansion(pm::S.IsotropicProperties, 
+                                             pf::S.AbstractElasticProperties, 
                                              cte_m::S.ThermalExpansion,
                                              cte_f::S.ThermalExpansion,
                                              volume_fraction,
                                              aspect_ratio,
-                                             a2::S.OrientationTensor,
+                                             a2::S.PrincipalOrientationTensor,
                                              inclusion::S.InclusionGeometry;
                                              mandel = true,
                                              average = true,

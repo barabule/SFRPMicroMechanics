@@ -1,11 +1,11 @@
 
 
-abstract type AbstractElasticParameters end
+abstract type AbstractElasticProperties end
 
-struct IsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
+struct IsotropicProperties{T<:Real}<:AbstractElasticProperties
     E::T
     nu::T
-    function IsotropicElasticParameters(E, nu)
+    function IsotropicProperties(E, nu)
         args = promote(E, nu)
         T = eltype(args)
         @assert E>0 "E modulus must be positive!"
@@ -14,7 +14,7 @@ struct IsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
 end
 
 
-struct OrthotropicElasticParameters{T<:Real}<:AbstractElasticParameters
+struct OrthotropicProperties{T<:Real}<:AbstractElasticProperties
     E1::T
     E2::T
     E3::T
@@ -25,7 +25,7 @@ struct OrthotropicElasticParameters{T<:Real}<:AbstractElasticParameters
     nu31::T
     nu32::T
     
-    function OrthotropicElasticParameters(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
+    function OrthotropicProperties(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
             args = promote(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
             T = eltype(args)
             
@@ -37,7 +37,7 @@ struct OrthotropicElasticParameters{T<:Real}<:AbstractElasticParameters
 end
 
 
-struct TransverseIsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
+struct TransverseIsotropicProperties{T<:Real}<:AbstractElasticProperties
     E1::T
     E2::T
     G12::T
@@ -45,26 +45,26 @@ struct TransverseIsotropicElasticParameters{T<:Real}<:AbstractElasticParameters
     nu21::T
 end
 
-function stiffness_matrix_voigt(p::TransverseIsotropicElasticParameters; mandel = false)
-    return stiffness_matrix_voigt(OrthotropicElasticParameters(p); mandel)    
+function stiffness_matrix_voigt(p::TransverseIsotropicProperties; mandel = false)
+    return stiffness_matrix_voigt(OrthotropicProperties(p); mandel)    
 end
 
 
-function bulk_modulus(p::IsotropicElasticParameters)
+function bulk_modulus(p::IsotropicProperties)
     E, nu = p.E, p.nu
     return E / (3(1-2nu))
 end
 
-function shear_modulus(p::IsotropicElasticParameters)
+function shear_modulus(p::IsotropicProperties)
     E, nu = p.E, p.nu
     return E/ (2(1+nu))
 end
 
-function lame_constant(p::IsotropicElasticParameters)
+function lame_constant(p::IsotropicProperties)
     return p.E * p.nu / ((1 + p.nu) * (1 - 2p.nu))
 end
 
-function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
+function OrthotropicProperties(p::TransverseIsotropicProperties)
     
     E1 = p.E1
     E2 = E3 = p.E2
@@ -76,14 +76,14 @@ function OrthotropicElasticParameters(p::TransverseIsotropicElasticParameters)
     nu21 = nu31 = p.nu21
     nu23 = E2 / (2G23) - 1
 
-    return OrthotropicElasticParameters(;E1, E2, E3, G12, G23, G31, nu21, nu31, nu23)
+    return OrthotropicProperties(;E1, E2, E3, G12, G23, G31, nu21, nu31, nu23)
 end
 
 
-function OrthotropicElasticParameters(p::IsotropicElasticParameters)
+function OrthotropicProperties(p::IsotropicProperties)
     E, nu = p.E, p.nu
     G = E/(2(1+nu))
-    return OrthotropicElasticParameters(;E1 = E,
+    return OrthotropicProperties(;E1 = E,
                                          E2 = E,
                                          E3 = E,
                                          G12 = G,
@@ -98,7 +98,7 @@ end
 """
     compute_isotropic_best_fit(C_avg)
 Projects a 6x6 stiffness tensor (Voigt notation) onto the isotropic manifold.
-Returns IsotropicElasticParameters
+Returns IsotropicProperties
 """
 function isotropic_best_fit(C::AbstractMatrix)
     @assert size(C) == (6, 6)
@@ -118,18 +118,18 @@ function isotropic_best_fit(C::AbstractMatrix)
     E = (9 * K * G) / (3 * K + G)
     nu = (3 * K - 2 * G) / (2 * (3 * K + G))
 
-    return IsotropicElasticParameters(E, nu)
+    return IsotropicProperties(E, nu)
 end
 
 #upper bound
-function voigt_average(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+function voigt_average(ps::AbstractVector{<:AbstractElasticProperties}, w::AbstractVector{<:Real};mandel = true)
     @assert length(ps) == length(w)
     W =sum(w)
     return sum(stiffness_matrix_voigt(ps[i];mandel) * w[i]/ W for i in eachindex(ps))
 end
 
 #lower bound
-function reuss_average(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+function reuss_average(ps::AbstractVector{<:AbstractElasticProperties}, w::AbstractVector{<:Real};mandel = true)
     @assert length(ps) == length(w)
     W =sum(w)
     #maybe this could be be handled by compliance matrices
@@ -142,7 +142,7 @@ function hill_average(args...; kwargs...)
 end
 
 
-function IsotropicElasticParameters(ps::AbstractVector{<:AbstractElasticParameters}, w::AbstractVector{<:Real};mandel = true)
+function IsotropicProperties(ps::AbstractVector{<:AbstractElasticProperties}, w::AbstractVector{<:Real};mandel = true)
     @assert length(ps) == length(w)
     C_avg = hill_average(ps, w; mandel)
     return isotropic_best_fit(C_avg)
@@ -150,7 +150,7 @@ end
 
 
 
-function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicElasticParameters)
+function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicProperties)
     println(io, "Elastic Constants:")
     # for field in fieldnames(T)
     #     value = getfield(p, field)
@@ -178,7 +178,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicElasticParameters)
 
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticParameters)
+function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicProperties)
     println(io, "Elastic Constants:")
     
     println(io, "E1 = $(round(p.E1, sigdigits = 4))")
@@ -203,20 +203,20 @@ function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicElasticPara
     println(io, "ν32 = $(round(p.nu32, sigdigits = 4))")
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::IsotropicElasticParameters)
+function Base.show(io::IO, ::MIME"text/plain", p::IsotropicProperties)
     println(io, "Elastic Constants:")
     println(io, "E = $(p.E)")
     println(io, "ν = $(p.nu)")
 end
 
 
-function Base.isapprox(p1::IsotropicElasticParameters, p2::IsotropicElasticParameters; kwargs...)
+function Base.isapprox(p1::IsotropicProperties, p2::IsotropicProperties; kwargs...)
     return isapprox(p1.E, p2.E; kwargs...) &&
            isapprox(p1.nu, p2.nu; kwargs...)
 end
 
 
-function Base.isapprox(p1::OrthotropicElasticParameters, p2::OrthotropicElasticParameters; kwargs...)
+function Base.isapprox(p1::OrthotropicProperties, p2::OrthotropicProperties; kwargs...)
     return isapprox(p1.E1, p2.E1; kwargs...) &&
            isapprox(p1.E2, p2.E2; kwargs...) &&
            isapprox(p1.E3, p2.E3; kwargs...) &&
@@ -229,7 +229,7 @@ function Base.isapprox(p1::OrthotropicElasticParameters, p2::OrthotropicElasticP
 
 end
 
-function Base.isapprox(p1::TransverseIsotropicElasticParameters, p2::TransverseIsotropicElasticParameters; kwargs...)
+function Base.isapprox(p1::TransverseIsotropicProperties, p2::TransverseIsotropicProperties; kwargs...)
     return isapprox(p1.E1, p2.E1; kwargs...) &&
            isapprox(p1.E2, p2.E2; kwargs...) &&
            isapprox(p1.G12, p2.G12; kwargs...) &&
@@ -237,13 +237,13 @@ function Base.isapprox(p1::TransverseIsotropicElasticParameters, p2::TransverseI
            isapprox(p1.nu21, p2.nu21; kwargs...)
 end
 
-function Base.isapprox(p1::OrthotropicElasticParameters, p2::AbstractElasticParameters; kwargs...) 
-    return isapprox(p1, OrthotropicElasticParameters(p2);kwargs...)
+function Base.isapprox(p1::OrthotropicProperties, p2::AbstractElasticProperties; kwargs...) 
+    return isapprox(p1, OrthotropicProperties(p2);kwargs...)
 end
 
-Base.isapprox(p1::AbstractElasticParameters, p2::OrthotropicElasticParameters; kwargs...) = isapprox(p2,p1;kwargs...)
+Base.isapprox(p1::AbstractElasticProperties, p2::OrthotropicProperties; kwargs...) = isapprox(p2,p1;kwargs...)
 
-function OrthotropicElasticParameters(;E1 = nothing,
+function OrthotropicProperties(;E1 = nothing,
                                        E2 = nothing,
                                        E3 = nothing,
                                        nu12 = nothing,
@@ -278,11 +278,11 @@ function OrthotropicElasticParameters(;E1 = nothing,
         nu31 = nu13 * E3 / E1
     end
 
-    return OrthotropicElasticParameters(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
+    return OrthotropicProperties(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32)
 end
 
 
-function TransverseIsotropicElasticParameters(;E1 = nothing,
+function TransverseIsotropicProperties(;E1 = nothing,
                                                E2 = nothing,
                                                E3 = nothing,
                                                G12 = nothing,
@@ -342,17 +342,17 @@ function TransverseIsotropicElasticParameters(;E1 = nothing,
     elseif Δ < 1e-6
         @warn "Material is near a stability limit (Δ = $Δ). Results may be numerically sensitive."
     end
-    return TransverseIsotropicElasticParameters(E1, E2, G12, G23, nu21)
+    return TransverseIsotropicProperties(E1, E2, G12, G23, nu21)
 end
 
 
 
-function stiffness_matrix_voigt(p::IsotropicElasticParameters; mandel = false)
+function stiffness_matrix_voigt(p::IsotropicProperties; mandel = false)
     E, nu = p.E, p.nu
     return isotropic_stiffness(E, nu; mandel)
 end
 
-function stiffness_matrix_voigt(p::OrthotropicElasticParameters; mandel = false)
+function stiffness_matrix_voigt(p::OrthotropicProperties; mandel = false)
     
     return orthotropic_stiffness(p.E1, p.E2, p.E3, p.G12, p.G23, p.G31, p.nu21, p.nu31, p.nu32; mandel) 
 end
@@ -374,7 +374,7 @@ function isotropic_stiffness(E, nu; mandel = false)
 end
 
 
-# function stiffness_tensor(p::IsotropicElasticParameters{T}; mandel = false) where T
+# function stiffness_tensor(p::IsotropicProperties{T}; mandel = false) where T
     
 #     return mandel ? frommandel(stiffness_matrix_voigt(p;mandel)) : fromvoigt(stiffness_matrix_voigt(p;mandel))
 # end
@@ -441,15 +441,7 @@ function is_isotropic(M::AbstractMatrix; tol=1e-9, mandel = false)
     return all_equal_diag && all_equal_off && all_equal_shear && off_block_is_zero && rel_check
 end
 
-"""
-calc_vol_fraction(w_f, rho_f, rho_m)
-Converts fiber weight fraction (e.g., 0.30 for 30% GF) to volume fraction.
-"""
-function calc_vol_fraction(mass_fraction, rho_f, rho_m)
-    w_f = mass_fraction
-    v_f = (w_f / rho_f) / (w_f / rho_f + (1 - w_f) / rho_m)
-    return v_f
-end
+
 
 function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mandel = false)
     nu12 = nu21 * E1 / E2
@@ -491,7 +483,7 @@ function orthotropic_stiffness(E1, E2, E3, G12, G23, G31, nu21, nu31, nu32; mand
     ]  
 end
 
-function stiffness_tensor(p::OrthotropicElasticParameters;mandel=false)
+function stiffness_tensor(p::OrthotropicProperties;mandel=false)
 
     convert_66_to_3333(stiffness_matrix_voigt(p; mandel); mandel)
 end
@@ -507,7 +499,7 @@ function extract_orthotropic_constants(C_66::AbstractMatrix; mandel = true)
     G23, G31, G12 = b/S[4,4], b/S[5,5], b/S[6,6]
     nu12, nu23, nu13 = -S[2, 1] * E1, -S[3, 2] * E2, -S[3, 1] * E1
     
-    return OrthotropicElasticParameters(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
+    return OrthotropicProperties(;E1, E2, E3, G23, G31, G12, nu12, nu23, nu13)
    
 end
 

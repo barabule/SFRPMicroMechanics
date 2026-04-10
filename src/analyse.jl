@@ -5,7 +5,7 @@ apparent_modulus(theta_deg, p)
 Calculates the Young's Modulus at an angle theta (degrees) 
 relative to the 1-axis.
 """
-function apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T) where {T<:Real}
+function apparent_modulus(p::OrthotropicProperties, theta_deg::T) where {T<:Real}
     
 
     # 1/E_theta = cos(theta)^4 / E1 + sin(theta)^4/E2 + (1/G12 - 2nu12/E1)*sin^2 cos^2
@@ -27,14 +27,14 @@ end
     
     
 """
-    apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T2, phi_deg::T1) where {T1<:Real, T2<:Real}
+    apparent_modulus(p::OrthotropicProperties, theta_deg::T2, phi_deg::T1) where {T1<:Real, T2<:Real}
 
 Calculates the Young's Modulus in 3D space.
 - phi_deg: Inclination from the 3-axis (0 to 180)
 - theta_deg: Azimuth from the 1-axis in the 1-2 plane (0 to 360)
 - p - orthotropic elastic constants
 """
-function apparent_modulus(p::OrthotropicElasticParameters, theta_deg::T1, phi_deg::T2) where {T1<:Real, T2<:Real}
+function apparent_modulus(p::OrthotropicProperties, theta_deg::T1, phi_deg::T2) where {T1<:Real, T2<:Real}
     
     E1, E2, E3 = p.E1, p.E2, p.E3
     nu21, nu32, nu31 = p.nu21, p.nu32, p.nu31
@@ -71,7 +71,7 @@ generate_stiffness_mesh(C_avg_66; resolution=50)
 Generates a (nodes, faces) tuple for GLMakie.
 - resolution: Number of points for theta and phi.
 """
-function generate_stiffness_mesh(p::OrthotropicElasticParameters; resolution=60)
+function generate_stiffness_mesh(p::OrthotropicProperties; resolution=60)
     C = stiffness_matrix_voigt(p)
     # Define angles
     phi = LinRange(0, 180, resolution)      # Inclination

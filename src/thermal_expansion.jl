@@ -39,8 +39,8 @@ function ThermalExpansion(v6::AbstractVector)
 end
 
 
-function ThermalExpansion(pm::IsotropicElasticParameters, 
-                          pf::IsotropicElasticParameters, 
+function ThermalExpansion(pm::IsotropicProperties, 
+                          pf::IsotropicProperties, 
                           cte_m::ThermalExpansion, 
                           cte_f::ThermalExpansion, 
                           vf::Real, 
@@ -86,7 +86,7 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
 end
 
 
-function orientation_averaging_thermal_expansion(cte::ThermalExpansion, a::OrientationTensor)
+function orientation_averaging_thermal_expansion(cte::ThermalExpansion, a::PrincipalOrientationTensor)
 
 
     αl = cte.alpha1
@@ -102,14 +102,14 @@ end
 
 
 
-function ThermalExpansion(pm::IsotropicElasticParameters, 
+function ThermalExpansion(pm::IsotropicProperties, 
                           fiber::FiberPhase, 
                           ctes::Vector{<:ThermalExpansion}, 
                           a::AbstractOrientationTensor,
                           )
 
     @assert length(ctes)>=2 "2 CTEs must be given!"
-    @assert isa(fiber.elastic_properties, IsotropicElasticParameters) "Fiber must be isotropic!"
+    @assert isa(fiber.elastic_properties, IsotropicProperties) "Fiber must be isotropic!"
 
     return ThermalExpansion(pm, 
                             fiber.elastic_properties,
@@ -124,10 +124,10 @@ end
 
 
 
-function ThermalExpansion(pm::IsotropicElasticParameters,
+function ThermalExpansion(pm::IsotropicProperties,
                             fibers::AbstractVector{<:FiberPhase},
                             ctes::AbstractVector{<:ThermalExpansion},
-                            a::OrientationTensor;
+                            a::PrincipalOrientationTensor;
                             mandel = true)
 
     @assert length(fibers) + 1 == length(ctes)
@@ -136,7 +136,7 @@ function ThermalExpansion(pm::IsotropicElasticParameters,
 end
 
 
-function effective_thermal_expansion_mt(pm::IsotropicElasticParameters, 
+function effective_thermal_expansion_mt(pm::IsotropicProperties, 
                                      fibers::AbstractVector{<:FiberPhase}, 
                                      ctes::AbstractVector{<:ThermalExpansion},
                                      a::AbstractOrientationTensor;
@@ -181,8 +181,8 @@ end
 
 
 """
-    effective_thermal_expansion_chow(pm::IsotropicElasticParameters, 
-                                     pf::IsotropicElasticParameters, 
+    effective_thermal_expansion_chow(pm::IsotropicProperties, 
+                                     pf::IsotropicProperties, 
                                      cte_m::ThermalExpansion,
                                      cte_f::ThermalExpansion,
                                      volume_fraction::Real,
@@ -195,8 +195,8 @@ coefﬁcients of composites" by Pin Lu, 2012, Polymer 54, 1691-1699
 
 Only works for isotropic fibers
 """
-function effective_thermal_expansion_chow(pm::IsotropicElasticParameters, 
-                                     pf::IsotropicElasticParameters, 
+function effective_thermal_expansion_chow(pm::IsotropicProperties, 
+                                     pf::IsotropicProperties, 
                                      cte_m::ThermalExpansion,
                                      cte_f::ThermalExpansion,
                                      volume_fraction::Real,
@@ -246,16 +246,16 @@ end
 
 
 """
-    effective_thermal_expansion_shapery(pm::IsotropicElasticParameters, 
-                                           pf::IsotropicElasticParameters, 
+    effective_thermal_expansion_shapery(pm::IsotropicProperties, 
+                                           pf::IsotropicProperties, 
                                            cte_m::ThermalExpansion, 
                                            cte_f::ThermalExpansion, 
                                            volume_fraction::Real)
                                       
 TBW
 """
-function effective_thermal_expansion_shapery(pm::IsotropicElasticParameters, 
-                                           pf::IsotropicElasticParameters, 
+function effective_thermal_expansion_shapery(pm::IsotropicProperties, 
+                                           pf::IsotropicProperties, 
                                            cte_m::ThermalExpansion, 
                                            cte_f::ThermalExpansion, 
                                            volume_fraction::Real)
@@ -278,8 +278,8 @@ function effective_thermal_expansion_shapery(pm::IsotropicElasticParameters,
     return ThermalExpansion(αL, αT)
 end
 
-function effective_thermal_expansion_kerner(pm::IsotropicElasticParameters,
-                                            pf::IsotropicElasticParameters,
+function effective_thermal_expansion_kerner(pm::IsotropicProperties,
+                                            pf::IsotropicProperties,
                                             cte_m::ThermalExpansion,
                                             cte_f::ThermalExpansion,
                                             vf::Real)
@@ -297,8 +297,8 @@ function effective_thermal_expansion_kerner(pm::IsotropicElasticParameters,
     return ThermalExpansion(αc)
 end
 
-function compute_thermal_expansion_kerner(pm::IsotropicElasticParameters, 
-                                          pfs::Vector{IsotropicElasticParameters}, 
+function compute_thermal_expansion_kerner(pm::IsotropicProperties, 
+                                          pfs::Vector{IsotropicProperties}, 
                                           cte_m::ThermalExpansion, 
                                           ctes_f::Vector{ThermalExpansion}, 
                                           vfs::Vector{Real})
@@ -324,7 +324,7 @@ end
 
 
 
-function hashin_strikman_bounds(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters, vf)
+function hashin_strikman_bounds(pm::IsotropicProperties, pf::IsotropicProperties, vf)
     vm = 1 - vf
 
     Km = bulk_modulus(pm)
@@ -341,8 +341,8 @@ end
 
 
 
-function effective_thermal_expansion_mt_aligned(pm::IsotropicElasticParameters,
-                                                pf::IsotropicElasticParameters,
+function effective_thermal_expansion_mt_aligned(pm::IsotropicProperties,
+                                                pf::IsotropicProperties,
                                                 cte_m::ThermalExpansion,
                                                 cte_f::ThermalExpansion,
                                                 volume_fraction::Real,
@@ -393,8 +393,8 @@ function effective_thermal_expansion_ROM(
 end
 
 
-function effective_thermal_expansion_turner(pm::IsotropicElasticParameters,
-                                        pf::IsotropicElasticParameters,
+function effective_thermal_expansion_turner(pm::IsotropicProperties,
+                                        pf::IsotropicProperties,
                                         cte_m::ThermalExpansion,
                                         cte_f::ThermalExpansion,
                                         volume_fraction::Real,)
@@ -413,7 +413,7 @@ end
 
 
 """
-    compute_all_thermal_expansions(pm::IsotropicElasticParameters, #matrix 
+    compute_all_thermal_expansions(pm::IsotropicProperties, #matrix 
                                         fibers::AbstractVector{<:FiberPhase},
                                         ctes::AbstractVector{<:ThermalExpansion},
                                         a::AbstractOrientationTensor;
@@ -442,7 +442,7 @@ Returns a NamedTuple (;turner = cte_turner,
             )
                                         
 """
-function compute_all_thermal_expansions(pm::IsotropicElasticParameters, #matrix 
+function compute_all_thermal_expansions(pm::IsotropicProperties, #matrix 
                                         fibers::AbstractVector{<:FiberPhase},
                                         ctes::AbstractVector{<:ThermalExpansion},
                                         a::AbstractOrientationTensor;
@@ -534,7 +534,7 @@ function averaged_fiber(fibers::AbstractVector{<:FiberPhase},
 
     ps = [fiber.elastic_properties for fiber in fibers]
     w = vfs ./ vf_tot
-    pf_avg = IsotropicElasticParameters(ps, w; mandel)
+    pf_avg = IsotropicProperties(ps, w; mandel)
 
     AR_avg = sum([fiber.aspect_ratio for fiber in fibers] .* vfs ./ vf_tot)
 

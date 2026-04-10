@@ -1,14 +1,14 @@
 
 """
     FiberPhase - collects fiber properties:
-        - elastic_properties - (isotropic or Orthotropic) a subtype of AbstractElasticParameters
+        - elastic_properties - (isotropic or Orthotropic) a subtype of AbstractElasticProperties
         - volume fraction of this phase
         - aspect ratio (ratiio of longest to shortest dim)
         - shape : InclusionGeometry (one of :SphericalInclusion(), SpheroidalInclusion(), NeedleInclusion(),
                     DiscInclusion(), ThinDiscInclusion()
 
 """
-Base.@kwdef struct FiberPhase{EP<:AbstractElasticParameters, T<:Real, IG<:InclusionGeometry}   
+Base.@kwdef struct FiberPhase{EP<:AbstractElasticProperties, T<:Real, IG<:InclusionGeometry}   
     elastic_properties::EP
     volume_fraction::T
     aspect_ratio::T
@@ -20,7 +20,7 @@ Base.@kwdef struct FiberPhase{EP<:AbstractElasticParameters, T<:Real, IG<:Inclus
         EP = typeof(ep)
         IG = typeof(shap)
         @assert IG<:InclusionGeometry
-        @assert EP<:AbstractElasticParameters
+        @assert EP<:AbstractElasticProperties
         @assert 0<= vf <= 1 "Volume fraction must be between 0 and 1!"
         @assert ar > 0 "Aspect ratio must be positive!"
         return new{EP, T, IG}(ep, VF, AR, shap)
@@ -31,20 +31,25 @@ end
 
 
 """
-    mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
+    mori_tanaka(pm::IsotropicProperties, fibers::AbstractVector{<:FiberPhase}; 
                     mandel = false,
                     symmetrize = false)
 
 Inputs:
-    pm - elastic parameters of the matrix - IsotropicElasticParameters(E, nu)
+    pm - elastic parameters of the matrix - IsotropicProperties(E, nu)
     fibers - list of fibers [FiberPhase]
 
     mandel - stiffness matrices are Mandel form
     symmetrize - if true, symmetrizes the final stiffness matrix
 
-Returns an effective stiffness matrix 6x6
+Output:
+    Cmt - 6x6 stiffness matrix in Voigt/Mandel scaling
+
+Returns an effective stiffness matrix 6x6 for a 
+Classic mori-tanaka procedure, but for possibly multiple fiber phases.
+The resulting stiffness matrix should be orientation averaged to obtain the averaged properties.
 """
-function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:FiberPhase}; 
+function mori_tanaka(pm::IsotropicProperties, fibers::AbstractVector{<:FiberPhase}; 
                     mandel = true,
                     symmetrize = false)
 
@@ -96,7 +101,7 @@ function mori_tanaka(pm::IsotropicElasticParameters, fibers::AbstractVector{<:Fi
     return C_MT
 end
 
-function mori_tanaka(pm::IsotropicElasticParameters, pf::AbstractElasticParameters, vf::Real, ar::Real;
+function mori_tanaka(pm::IsotropicProperties, pf::AbstractElasticProperties, vf::Real, ar::Real;
                     shape = SpheroidalInclusion(), 
                     mandel = true,
                     symmetrize = false)
@@ -109,23 +114,24 @@ end
 
 
 """
-    mori_tanaka(pm::IsotropicElasticParameters, 
+    mori_tanaka(pm::IsotropicProperties, 
                                     fibers::AbstractVector{<:FiberPhase}, 
                                     a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
                                     closure_type = IBOF,
                                     mandel = true,
                                     symmetrize = true)
 
-Computes the effective stiffness matrix (mandel or voigt depending on value of mandel) acc. to 
-Benveniste1987
-
+Computes the effective stiffness matrix (mandel or voigt depending on value of mandel) with orientation averaging 
+acc. to Benveniste1987.
+Handles multiple fiber phases, each with their own orientation tensor.
+Gives slightly different results to the "classic" mori-tanaka multi fiber results due to the orientation averaging.
 
 
 pm - matrix properties
 fibers  - vector of FiberPhase(s) - for each fiber contains  - elastic properties (isotropic, transvers iso or ortho)
         volume fractions, aspect ratios and shapes
 
-a  - is either a OrientationTensor or a vector of them (one for each fiber)
+a  - is either a PrincipalOrientationTensor or a vector of them (one for each fiber)
 
 kwargs:
      closure_type 
@@ -136,7 +142,7 @@ kwargs:
 
 
 """
-function mori_tanaka(pm::IsotropicElasticParameters, 
+function mori_tanaka(pm::IsotropicProperties, 
                     fibers::AbstractVector{<:FiberPhase}, 
                     a::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}};
                     closure_type = IBOF,
@@ -198,7 +204,7 @@ end
 
 
 
-function halpin_tsai(pm::IsotropicElasticParameters, pf::IsotropicElasticParameters,
+function halpin_tsai(pm::IsotropicProperties, pf::IsotropicProperties,
                     volume_fraction, aspect_ratio; mandel = true)
 
     Em, nu_m = pm.E, pm.nu
@@ -241,7 +247,7 @@ function halpin_tsai(Ef, Em, nu_f, nu_m, vf, ar; mandel = true)
     nu31_UD = (nu12_UD * E33_UD) / E11_UD
 
 
-    peff = OrthotropicElasticParameters(;E1 = E11_UD,
+    peff = OrthotropicProperties(;E1 = E11_UD,
                                          E2 = E22_UD, 
                                          E3 = E33_UD, 
                                          G12 = G12_UD, 
@@ -299,7 +305,7 @@ function halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu_f12, Em, nu_m
     nu21_UD = (nu12_UD * E22_UD) / E11_UD # Reciprocity
     nu31_UD = nu21_UD
 
-    peff = OrthotropicElasticParameters(;E1 = E11_UD,
+    peff = OrthotropicProperties(;E1 = E11_UD,
                                          E2 = E22_UD, 
                                          E3 = E33_UD, 
                                          G12 = G12_UD, 
@@ -314,7 +320,7 @@ function halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu_f12, Em, nu_m
 end
 
 
-function halpin_tsai(pm::IsotropicElasticParameters, pf::TransverseIsotropicElasticParameters, vf, ar)
+function halpin_tsai(pm::IsotropicProperties, pf::TransverseIsotropicProperties, vf, ar)
     Em, nu_m = pm.E, pm.nu
     Ef1, Ef2, Gf12, Gf23, nu21_f = pf.E1, pf.E2, pf.G12, pf.G23, pf.nu21 
     nu12_f = nu21_f * Ef1 / Ef2
@@ -322,7 +328,7 @@ function halpin_tsai(pm::IsotropicElasticParameters, pf::TransverseIsotropicElas
     return halpin_tsai_transverse_isotropic(Ef1, Ef2, Gf12, Gf23, nu12_f, Em, nu_m, vf, ar)
 end
 
-function halpin_tsai(pm::IsotropicElasticParameters, fiber::FiberPhase)
+function halpin_tsai(pm::IsotropicProperties, fiber::FiberPhase)
     pf = fiber.elastic_properties
     vf = fiber.volume_fraction
     ar = fiber.aspect_ratio

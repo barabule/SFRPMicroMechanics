@@ -24,7 +24,7 @@ include("analyse.jl")
 export mori_tanaka
 export FiberPhase
 #elastic 
-export IsotropicElasticParameters, OrthotropicElasticParameters, TransverseIsotropicElasticParameters
+export IsotropicProperties, OrthotropicProperties, TransverseIsotropicProperties
 export stiffness_matrix_voigt, extract_orthotropic_constants
 
 #inclusions
@@ -42,7 +42,7 @@ export LinearClosure, QuadraticClosure, HybridClosure, HL1Closure, HL2Closure
 export ORF, ORS, ORL, ORFM, ORW, ORW3, IBOF
 
 
-export OrientationTensor, FullOrientationTensor, decompose
+export PrincipalOrientationTensor, FullOrientationTensor, decompose
 
 
 end # module SFRPMicroMechanics

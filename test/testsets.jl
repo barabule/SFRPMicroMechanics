@@ -2,13 +2,13 @@
     #this shouldn't produce errors ...
     S = SFRPMicroMechanics
     Em, num = 2.3456, 0.345
-    pm = S.IsotropicElasticParameters(Em, num) #elastic properties
+    pm = S.IsotropicProperties(Em, num) #elastic properties
     Cm = S.stiffness_matrix_voigt(pm; mandel = true) #stiffness matrix
     # @info "Cm"
     # display(Cm)
     
     Ef, nuf = 78.91234, 0.23551
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pf = S.IsotropicProperties(Ef, nuf)
     Cf = S.stiffness_matrix_voigt(pf; mandel = true)
     # @info "Cf"
     # display(Cf)
@@ -27,7 +27,7 @@
 
 
     a11, a22 = 0.5674, 0.3333
-    a = S.OrientationTensor(a11 ,a22)
+    a = S.PrincipalOrientationTensor(a11 ,a22)
     N2 = S.to_matrix(a)
     N4 = S.closure(a, S.HybridClosure)
     # display(N4)
@@ -52,21 +52,28 @@ end
 
 
 @testset "Tensor Conversions" verbose = true begin
-    C = SFRPMicroMechanics.isotropic_stiffness(210.0, 0.3)
-    tens = SFRPMicroMechanics.convert_66_to_3333(C; mandel = false)
-    Cc = SFRPMicroMechanics.convert_3333_to_66(tens;mandel = false)
-    tensc = SFRPMicroMechanics.convert_66_to_3333(Cc; mandel = false)
+    S = SFRPMicroMechanics
+    for mandel in (true, false)
+        p = S.OrthotropicProperties(;E1 = 210.0, E2 = 50.0, E3 = 65.0,
+                                            nu21 = 0.05, nu23 = 0.3, nu31 = 0.14,
+                                            G12 = 24.3, G23 = 43.2, G31 = 23.4)
 
-    @test all(C .≈ Cc)
-    @test all(tens .≈ tensc)
+        C1 = S.stiffness_matrix_voigt(p; mandel)
+        t1 = S.convert_66_to_3333(C1; mandel)
+        C2 = S.convert_3333_to_66(t1; mandel)
+        t2 = S.convert_66_to_3333(C2;mandel)
 
+        
+        @test all(C1 .≈ C2)
+        @test all(t1 .≈ t2)
+    end
 
 end
 
 @testset "Basic Stiffness Conversion" verbose = true begin
     E, nu = 10.0, 0.3
     mandel = true
-    p =SFRPMicroMechanics.IsotropicElasticParameters(E, nu)
+    p =SFRPMicroMechanics.IsotropicProperties(E, nu)
     C = SFRPMicroMechanics.stiffness_matrix_voigt(p;mandel)
     @test SFRPMicroMechanics.is_structurally_isotropic(C) #dooh
 
@@ -83,7 +90,7 @@ end
     G12 = 8.0
     G23 = 6.4
     G31 = 4.5
-    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1, E2, E3, nu21, nu32, nu31, G12, G23, G31) 
+    p = SFRPMicroMechanics.OrthotropicProperties(;E1, E2, E3, nu21, nu32, nu31, G12, G23, G31) 
     C = SFRPMicroMechanics.stiffness_matrix_voigt(p; mandel)
 
     ct = SFRPMicroMechanics.extract_orthotropic_constants(C; mandel)
@@ -103,9 +110,9 @@ end
     vf = 0
     Em, num, Ef, nuf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 15.0, 0.7, 0.25
 
-    a2 = S.OrientationTensor(a11, a22)
-    pm = S.IsotropicElasticParameters(Em, num)
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    a2 = S.PrincipalOrientationTensor(a11, a22)
+    pm = S.IsotropicProperties(Em, num)
+    pf = S.IsotropicProperties(Ef, nuf)
 
     Cm = S.stiffness_matrix_voigt(pm;mandel = true)
     Cmt = S.mori_tanaka(pm, pf, vf, ar)
@@ -140,11 +147,11 @@ end
 
     Em, num, Ef, nuf, vf, ar, a11, a22 = 2000.0, 0.35, 70e3, 0.22, 0.3, 15.0, 0.7, 0.25
     
-    pm = S.IsotropicElasticParameters(Em, num)
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pm = S.IsotropicProperties(Em, num)
+    pf = S.IsotropicProperties(Ef, nuf)
 
     shape = S.SpheroidalInclusion()
-    a = S.OrientationTensor(a11, a22)
+    a = S.PrincipalOrientationTensor(a11, a22)
     fibers = [S.FiberPhase(pf, vf, ar, shape)]
 
     mandel = true
@@ -170,7 +177,7 @@ end
 end
 
 @testset "Extracted Props" verbose = true begin
-    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = 10.0,
+    p = SFRPMicroMechanics.OrthotropicProperties(;E1 = 10.0,
                                                         E2 = 1.0,
                                                         E3 = 0.9,
                                                         G12 = 0.5,
@@ -203,13 +210,13 @@ end
     G23 = E2 / (2(1+nu23))
 
     #these should be all the same 
-    p1 = S.OrthotropicElasticParameters(;E1, E2, E3, G12, G23, G31, nu12, nu13, nu23)
-    pt = S.TransverseIsotropicElasticParameters(;E1, E2, G12, nu23, nu13)
-    pt2 = S.TransverseIsotropicElasticParameters(;E1, E3, G31, G23, nu12)
-    pt3 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, G23, nu31)
-    pt4 = S.TransverseIsotropicElasticParameters(;E1, E3, G31, nu21, nu32)
-    pt5 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, nu21, nu23) #ls-dyna mat215
-    pt6 = S.TransverseIsotropicElasticParameters(;E1, E2, G12, G23, nu12) #python homopy
+    p1 = S.OrthotropicProperties(;E1, E2, E3, G12, G23, G31, nu12, nu13, nu23)
+    pt = S.TransverseIsotropicProperties(;E1, E2, G12, nu23, nu13)
+    pt2 = S.TransverseIsotropicProperties(;E1, E3, G31, G23, nu12)
+    pt3 = S.TransverseIsotropicProperties(;E1, E2, G12, G23, nu31)
+    pt4 = S.TransverseIsotropicProperties(;E1, E3, G31, nu21, nu32)
+    pt5 = S.TransverseIsotropicProperties(;E1, E2, G12, nu21, nu23) #ls-dyna mat215
+    pt6 = S.TransverseIsotropicProperties(;E1, E2, G12, G23, nu12) #python homopy
     # @info "p1"
     # display(p1)
     # @info "pt"
@@ -237,10 +244,10 @@ end
     a22 = 0.25
     mandel = true
     #mori tanaka should already be isotropic 
-    pm = S.IsotropicElasticParameters(Em, num)
+    pm = S.IsotropicProperties(Em, num)
     Cm = S.stiffness_matrix_voigt(pm;mandel)
     
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pf = S.IsotropicProperties(Ef, nuf)
     Cf = S.stiffness_matrix_voigt(pf;mandel)
 
     Tf = S.convert_66_to_3333(Cf; mandel)
@@ -273,10 +280,10 @@ end
     a22 = 0.25
     mandel = true
     #mori tanaka should already be isotropic 
-    pm = S.IsotropicElasticParameters(Em, num)
+    pm = S.IsotropicProperties(Em, num)
     Cm = S.stiffness_matrix_voigt(pm;mandel)
     
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pf = S.IsotropicProperties(Ef, nuf)
     Cf = S.stiffness_matrix_voigt(pf;mandel)
     
     # Cmt = S.mori_tanaka(Cm, Cf, vf, ar, num)
@@ -328,7 +335,7 @@ end
     @test elprops.nu21 ≈ elprops.nu32 ≈ elprops.nu31
     @test elprops.G12 ≈ elprops.G23 ≈ elprops.G31
 
-    a = S.OrientationTensor(a11, a22)
+    a = S.PrincipalOrientationTensor(a11, a22)
     Cavg = S.orientation_average(Cmt, a; mandel)
     @test all(isapprox.(Cavg, Cmt)) 
     # @info "Sphere Cavg"
@@ -345,8 +352,8 @@ end
     # This must yield a Transversely Isotropic material.
     a11, a22  = 1.0,  0.0
     Em, num, Ef, nuf = 2500.0, 0.3, 70e3, 0.2
-    pm = S.IsotropicElasticParameters(Em, num)
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pm = S.IsotropicProperties(Em, num)
+    pf = S.IsotropicProperties(Ef, nuf)
     aspect_ratio = 10.0
     vf = 0.17
     Ceff = S.mori_tanaka(pm, pf, vf, aspect_ratio)
@@ -365,10 +372,10 @@ end
     Em, num, Ef, nuf = 2000.0, 0.35, 70e3, 0.2
     aspect_ratio = 10.0
     vf = 0.2
-    pm = S.IsotropicElasticParameters(Em, num)
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pm = S.IsotropicProperties(Em, num)
+    pf = S.IsotropicProperties(Ef, nuf)
 
-    a2 = S.OrientationTensor(a11, a22)
+    a2 = S.PrincipalOrientationTensor(a11, a22)
     Cmt = S.mori_tanaka(pm, pf, vf, aspect_ratio)
     Cavg = S.orientation_average(Cmt, a2)
     # @info "Cavg"
@@ -391,8 +398,8 @@ end
 
     mandel = true
 
-    pm = S.IsotropicElasticParameters(Em, num)
-    pf  =S.IsotropicElasticParameters(Ef, nuf)
+    pm = S.IsotropicProperties(Em, num)
+    pf  =S.IsotropicProperties(Ef, nuf)
     shapes  = [S.NeedleInclusion(), S.SpheroidalInclusion()]
     for shape in shapes
         # @info "$shape"
@@ -405,7 +412,7 @@ end
         # @info "Upper bound = $ROM_E1"
         @test elprops.E1 <= ROM_E1 + 1.0 # Allow for tiny numerical float noise
 
-        Cavg = S.orientation_average(Cmt, S.OrientationTensor(a11, a22);mandel)
+        Cavg = S.orientation_average(Cmt, S.PrincipalOrientationTensor(a11, a22);mandel)
         elprops = S.extract_orthotropic_constants(Cavg;mandel)
         
         
@@ -428,7 +435,7 @@ end
     @test p.E1 < ROM_E1
 
     #trans fiber
-    pf = S.TransverseIsotropicElasticParameters(;E1 = 230.0, E2 = 25.0, nu21 = 0.03, nu23 = 0.4, G12 = 50.0)
+    pf = S.TransverseIsotropicProperties(;E1 = 230.0, E2 = 25.0, nu21 = 0.03, nu23 = 0.4, G12 = 50.0)
     C_ht = S.halpin_tsai(pm, pf, vf, aspect_ratio)
     p = S.extract_orthotropic_constants(C_ht)
     ROM_E1 = (1 - vf) * pm.E + vf * pf.E1
@@ -439,7 +446,7 @@ end
 
 @testset "Apparent Elastic Modulus" verbose = true begin
 
-    p = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = 10.0,
+    p = SFRPMicroMechanics.OrthotropicProperties(;E1 = 10.0,
                                                         E2 = 1.0,
                                                         E3 = 0.9,
                                                         G12 = 0.5,
@@ -496,11 +503,11 @@ end
 
     Ef = 72.6
     nu_f = 0.25
-    pf = S.IsotropicElasticParameters(Ef, nu_f)
+    pf = S.IsotropicProperties(Ef, nu_f)
 
     Em = 1.5
     nu_m = 0.39
-    pm = S.IsotropicElasticParameters(Em ,nu_m)
+    pm = S.IsotropicProperties(Em ,nu_m)
     
     ar = 50
     vf = 0.1
@@ -534,7 +541,7 @@ end
     ## isotropic == transverse with isotropic props
     G12 = Ef / (2(1 + nu_f))
     # G23 = G12
-    pf_trans =  S.TransverseIsotropicElasticParameters(Ef, Ef, G12, G12, nu_f)
+    pf_trans =  S.TransverseIsotropicProperties(Ef, Ef, G12, G12, nu_f)
     Cht_trans = S.halpin_tsai(pm, pf, vf, ar; mandel)  
 
     el_const_trans = S.extract_orthotropic_constants(Cht_trans)
@@ -546,7 +553,7 @@ end
     
     S = SFRPMicroMechanics
     Em, num = 3.5, 0.35 
-    pm = S.IsotropicElasticParameters(Em, num)
+    pm = S.IsotropicProperties(Em, num)
     alfa_m = 100e-6
     # @info "CTE matrix"
     cte_m = SFRPMicroMechanics.ThermalExpansion(alfa_m)
@@ -554,7 +561,7 @@ end
     #isotropic fiber
     mandel = true
     Ef, nuf = 230.0, 0.2
-    pf = S.IsotropicElasticParameters(Ef, nuf)
+    pf = S.IsotropicProperties(Ef, nuf)
 
     alfa_f = -1e-6
     # @info "CTE fiber"
@@ -564,7 +571,7 @@ end
     shape = S.SpheroidalInclusion()
     vf = 0.4
     
-    a = S.OrientationTensor(0.7, 0.2)
+    a = S.PrincipalOrientationTensor(0.7, 0.2)
 
     fibers = [S.FiberPhase(pf, vf, AR, shape)]
 
@@ -591,20 +598,20 @@ end
     cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, 0.2, AR, a, shape)
     @test alfa_f < cte_eff.alpha1 < cte_eff.alpha2 < cte_eff.alpha3 < alfa_m
     # if a11=a22 = 1/3 => cte isotropic
-    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.OrientationTensor(1/3, 1/3), shape)
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.PrincipalOrientationTensor(1/3, 1/3), shape)
     @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3
     # if ar=1 => cte isotropic
     cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), 1, a, shape)
     @test cte_eff.alpha1 ≈ cte_eff.alpha2 ≈ cte_eff.alpha3
     # if a22=a33 => alpha2 == alpha3
-    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.OrientationTensor(0.5, 0.25), shape)
+    cte_eff = S.ThermalExpansion(pm, pf, cte_m, cte_f, rand(), AR, S.PrincipalOrientationTensor(0.5, 0.25), shape)
     @test cte_eff.alpha1 < cte_eff.alpha2 ≈ cte_eff.alpha3
 
 
     #results for transverse with isotropic props == isotropic
     Gf = Ef / (2(1+nuf))
-    pf_iso = S.IsotropicElasticParameters(Ef, nuf)
-    pf = S.TransverseIsotropicElasticParameters(;E1 = Ef, E2 = Ef, nu12 = nuf, nu23 = nuf, G12 = Gf)
+    pf_iso = S.IsotropicProperties(Ef, nuf)
+    pf = S.TransverseIsotropicProperties(;E1 = Ef, E2 = Ef, nu12 = nuf, nu23 = nuf, G12 = Gf)
     vf, AR = 0.2, 15.0
     fibers = [S.FiberPhase(pf, vf, AR, shape)]
     cte_vec = [S.ThermalExpansion(80e-6), S.ThermalExpansion(5e-6)]
@@ -632,10 +639,10 @@ end
     #isotropic fibers
     S = SFRPMicroMechanics
     mandel = true
-    pf = SFRPMicroMechanics.IsotropicElasticParameters(242, 0.1)
+    pf = SFRPMicroMechanics.IsotropicProperties(242, 0.1)
     Cf = SFRPMicroMechanics.stiffness_matrix_voigt(pf; mandel)
     nu_m = 0.35
-    pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, nu_m)
+    pm = SFRPMicroMechanics.IsotropicProperties(2.0, nu_m)
     Cm = SFRPMicroMechanics.stiffness_matrix_voigt(pm; mandel)
     ar = 20
     vf = 0.2
@@ -661,7 +668,7 @@ end
 
     a11, a22 = 0.7, 0.25
 
-    orientation_tensor =S.OrientationTensor(a11, a22) 
+    orientation_tensor =S.PrincipalOrientationTensor(a11, a22) 
     Cavg = S.orientation_average(Ceff, orientation_tensor; mandel)
 
     # @info "Cavg"
@@ -725,9 +732,9 @@ end
     G23_c = E2_c / (2 * (1 +nu23_c))
     G13_c = G12_c
 
-    pm = SFRPMicroMechanics.IsotropicElasticParameters(2.0, 0.35)
+    pm = SFRPMicroMechanics.IsotropicProperties(2.0, 0.35)
 
-    pf = SFRPMicroMechanics.OrthotropicElasticParameters(;E1 = E1_c,
+    pf = SFRPMicroMechanics.OrthotropicProperties(;E1 = E1_c,
                                                         E2 = E2_c, E3 = E3_c,
                                                         G12 = G12_c, G23 = G23_c, G31 = G13_c,
                                                         nu21 = nu21_c, nu23 = nu23_c, nu31 = nu31_c)
@@ -772,7 +779,7 @@ end
 
 
     a11, a22 = 0.7, 0.25
-    orientation_tensor =S.OrientationTensor(a11, a22) 
+    orientation_tensor =S.PrincipalOrientationTensor(a11, a22) 
 
     C_avg_trans = S.orientation_average(Ceff, orientation_tensor; mandel)
     
@@ -780,7 +787,7 @@ end
     # display(C_avg_trans)
 
     ## method II
-    pf = S.TransverseIsotropicElasticParameters(E1 = 230.0, 
+    pf = S.TransverseIsotropicProperties(E1 = 230.0, 
                                                 E2 = 50.0, 
                                                 nu21 = 0.03, 
                                                 nu23 = 0.39,
@@ -902,7 +909,7 @@ end
     end
 
     #the simple case
-    a_eig = S.OrientationTensor(a11, a22)
+    a_eig = S.PrincipalOrientationTensor(a11, a22)
     a2 = S.to_matrix(a_eig)
     for CT in CTs
         @info "CT = $CT"
@@ -937,7 +944,7 @@ end
                 -3.209763487085262, 
                 1.5253864146381542]
 
-    A2 = S.OrientationTensor(0.7, 0.2)
+    A2 = S.PrincipalOrientationTensor(0.7, 0.2)
     (II, III) = S.get_invariants(A2)
     bs = S.beta_coefficients(II, III)
 
@@ -954,7 +961,7 @@ end
 #     mandel = true
 
 #     Em, num = 3.1, 0.34
-#     pm = S.IsotropicElasticParameters(Em, num)
+#     pm = S.IsotropicProperties(Em, num)
 #     @info "pm"
 #     display(pm)
 #     Cm = S.stiffness_matrix_voigt(pm; mandel)
@@ -962,7 +969,7 @@ end
 #     display(Cm)
 
 #     Ef, nuf =  178.5, 0.05
-#     pf = S.IsotropicElasticParameters(Ef, nuf)
+#     pf = S.IsotropicProperties(Ef, nuf)
 #     @info "pf"
 #     display(pf)
 #     Cf = S.stiffness_matrix_voigt(pf; mandel)
@@ -972,7 +979,7 @@ end
 #     vf = 0.165
 #     AR = 17.0
 
-#     a2 = S.OrientationTensor(0.67, 0.23)
+#     a2 = S.PrincipalOrientationTensor(0.67, 0.23)
 
 #     fiber = S.FiberPhase(pf, vf, AR, S.SpheroidalInclusion())
 
@@ -997,8 +1004,9 @@ end
     #we get a lot of erroring in the case of isotropic orientation tensor
     #probably the tolerance is too tight
     try
-        a = S.OrientationTensor(0.3333, 0.3333) 
-
+        a = S.PrincipalOrientationTensor(0.3333, 0.3333) 
+        a = S.PrincipalOrientationTensor(0.333, 0.333)
+        a = S.PrincipalOrientationTensor(0.3, 0.3)
         @test true
     catch
         @info "Orientation tensor constructor"
