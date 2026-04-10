@@ -67,9 +67,9 @@ Inputs:
 Ouputs:
     volume_fractions - Vector{T} of volume_fractions with length of densities. The 1st values is that of the matrix.
 """
-function to_volume_fractions(weight_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
+function to_volume_fractions(weight_fractions::AbstractVector{T1}, densities::AbstractVector{T2}) where {T1<:Real, T2<:Real}
 
-    @assert all(weight_fractions .> 0) "Weigth fractions must be positive!"
+    @assert all(weight_fractions .>= 0) "Weigth fractions must be positive!"
     @assert all(densities .> 0) "Densities must be positive!" 
     @assert length(weight_fractions) == length(densities) - 1 "Length of weight fractions vector must 1 less than densities vector!"
 
@@ -78,12 +78,13 @@ function to_volume_fractions(weight_fractions::AbstractVector{T}, densities::Abs
     @assert 0 <= W <= 1 "Sum of weight fractions must be between 0 and 1!"
 
     D = (1- W) / densities[1] #start with the matrix contribution
-    volume_fractions = zeros(T, length(densities))
-    volume_fractions[1] =  D #matrix
+    T = typeof(D)
+    volume_fractions = zeros(T, length(weight_fractions))
+    
 
     for (i,(w, rho)) in enumerate(zip(weight_fractions, view(densities, 2:N)))
         vi = w / rho
-        volume_fractions[i + 1] = vi
+        volume_fractions[i] = vi
         D += vi
     end
     volume_fractions ./= D
@@ -102,26 +103,49 @@ Inputs:
     densities - AbstractVector of Reals, 1st value is assumed matrix.
 
 Outputs:
-    weight_fractions - Vector{T} with length of densities vector. First value is that of the matrix.
+    weight_fractions - Vector{T} with length of volume fractions vector.
 """
-function to_weight_fractions(volume_fractions::AbstractVector{T}, densities::AbstractVector{T}) where T<:Real
-    @assert all(volume_fractions .> 0) "Volume fractions must be positive!"
+function to_weight_fractions(volume_fractions::AbstractVector{T1}, densities::AbstractVector{T2}) where {T1<:Real, T2<:Real}
+    @assert all(volume_fractions .>= 0) "Volume fractions must be positive!"
     @assert all(densities .> 0) "Densities must be positive!" 
-    @assert length(volume_fractions) == length(densities)-1 "Length of volume fraction vector must 1 less than densities vector!"
+    @assert length(volume_fractions) == length(densities) - 1 "Length of volume fraction vector must 1 less than densities vector!"
 
     N = length(densities)
     V = sum(volume_fractions)
     @assert 0<=V<=1 "Sum of volume fraction must be between 0 and 1!"
 
     D = densities[1] * (1 - V)
-    weight_fractions = zeros(T, length(densities))
-    weight_fractions[1] = D
+    T = typeof(D)
+    weight_fractions = zeros(T, length(volume_fractions))
+    # weight_fractions[1] = D
 
     for (i, (v, rho)) in enumerate(zip(volume_fractions, view(densities, 2:N)))
         wi = rho * v
         D += wi
-        weight_fractions[i + 1] = wi
+        weight_fractions[i] = wi
     end
     weight_fractions ./= D
-    return weight_fractions
+    return weight_fractions 
+end
+
+
+"""
+    effective_density(volume_fractions::AbstractVector, densities::AbstractVector)
+
+Compute the effective density by rule of mixtures from volume fractions and constituent densities.
+Inputs:
+    volume_fractions - AbstractVector{Real} - vector of fiber volume fractions. 
+                Length must be 1 less than densities vector.
+    densities - AbstractVector{Real} - vector of constituent densities. 
+                The first values is assumed to correspond to the matrix.
+Outputs:
+    effective density <: Real - value of the effective density.
+"""
+function effective_density(volume_fractions::AbstractVector{T1}, densities::AbstractVector{T2}) where {T1<:Real, T2<:Real}
+    @assert length(volume_fractions) == length(densities)-1 "Length of volume fractions must be 1 less than densities vector"
+    @assert all(volume_fractions .>= 0) "Volume fractions must be positive!"
+    @assert all(densities .> 0) "Densities must be positive!"  
+    V = sum(volume_fractions)
+    @assert 0 .< V .< 1 "Sum of volume fractions must be between 0 and 1!"
+    return (1-V)* first(densities) + volume_fractions .* view(densities, 2:length(densities))
 end

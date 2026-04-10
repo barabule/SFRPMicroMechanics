@@ -1035,10 +1035,10 @@ end
     wfm = 1 -sum(wf)
 
     vf = S.to_volume_fractions(wf, densities)
-    wf2 =S.to_weight_fractions(vf[2:N], densities)
-    vf2 = S.to_volume_fractions(wf2[2:N], densities)
+    wf2 =S.to_weight_fractions(vf, densities)
+    vf2 = S.to_volume_fractions(wf2, densities)
 
-    @test all([wfm, wf...] .≈ wf2)
+    @test all(wf .≈ wf2)
     @test all(vf .≈ vf2)
 
 end
