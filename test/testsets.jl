@@ -1079,3 +1079,53 @@ end
 
 end
 
+
+@testset "Constituents Effective Properties" verbose = true begin
+
+    S = SFRPMicroMechanics
+
+    matrix = S.MatrixConstituent(elastic_properties = S.IsotropicProperties(2.5, 0.31),
+                                density = 1.1,
+                                thermal_expansion = S.ThermalExpansion(100e-6))
+
+
+    f1 =S.FiberConstituent(elastic_properties = S.IsotropicProperties(72.0, 0.22),
+                                density = 2.5,
+                                thermal_expansion = S.ThermalExpansion(20e-6, 25e-6),
+                                aspect_ratio = 25.0,
+                                )
+
+    f2 = S.FiberConstituent(elastic_properties = S.TransverseIsotropicProperties(E1 = 230.0, 
+                                                                                E2 = 25.0,
+                                                                                G12 = 35.0, 
+                                                                                G23 = 50.0, 
+                                                                                nu21 = 0.02),
+                            density = 1.8,
+                            thermal_expansion = S.ThermalExpansion(-1e-6, 5e-6),
+                            aspect_ratio = 27.0,
+                        )
+    fibers = [f1, f2]
+
+    fractions = [0.15, 0.3]
+
+    orientation_tensor = S.PrincipalOrientationTensor(0.7, 0.2)
+    
+    p_eff_1 = S.effective_properties(matrix, fibers, fractions, orientation_tensor; 
+                                    by_weight = true,
+                                    mandel = true,)
+        
+
+    rho_eff = p_eff_1.density
+    @test matrix.density <= rho_eff <= maximum(f.density for f in fibers)
+
+    p_eff_2 = S.effective_properties(matrix, fibers, fractions, orientation_tensor;
+                                    by_weight = false,
+                                    stiffness_method = :halpintsai,
+                                    thermal_method = :turner)
+        
+    rho_eff = p_eff_2.density
+    @test matrix.density <= rho_eff <= maximum(f.density for f in fibers)
+   
+
+    
+end

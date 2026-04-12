@@ -6,14 +6,11 @@
 
 abstract type Constituent end
 
-@kwdef struct FiberConstituent{EP<:AbstractElasticProperties, 
-                               T<:Real, 
-                               OT<:AbstractOrientationTensor,
-                               IG<:InclusionGeometry} <:Constituent
-    elastic_properties::EP
+@kwdef struct FiberConstituent{T<:Real} <:Constituent
+    elastic_properties::Union{IsotropicProperties{T}, TransverseIsotropicProperties{T}}
     density::T
     aspect_ratio::T
-    shape::IG = SpheroidalInclusion()
+    shape::InclusionGeometry = SpheroidalInclusion()
     thermal_expansion::ThermalExpansion{T}
 end
 
@@ -31,31 +28,31 @@ end
 
 ## constructors 
 
-function Constituent(;
-                    elastic_properties = nothing::Union{Nothing, AbstractElasticProperties},
+# function Constituent(;
+#                     elastic_properties = nothing::Union{Nothing, AbstractElasticProperties},
                     
-                    density = nothing::Union{Nothing, Real},
-                    aspect_ratio = nothing::Union{Nothing, Real},
-                    shape = nothing::Union{Nothing, InclusionGeometry},
-                    thermal_expansion = nothing::Union{Nothing, ThermalExpansion},
+#                     density = nothing::Union{Nothing, Real},
+#                     aspect_ratio = nothing::Union{Nothing, Real},
+#                     shape = nothing::Union{Nothing, InclusionGeometry},
+#                     thermal_expansion = nothing::Union{Nothing, ThermalExpansion},
                     
-                    )
+#                     )
 
-    #if only isotropic elastic properties, density and thermal_expansion => MatrixConstituent
-    if isa(elastic_properties, IsotropicProperties) && !isnothing(density) && 
-                                                       !isnothing(thermal_expansion) && 
-                                                       isnothing(orientation_tensor)
-        # make thermal expansion isotropic
-        cte = ThermalExpansion(thermal_expansion.alpha1)
-        return MatrixConstituent(elastic_properties, density, thermal_expansion)
-    end
+#     #if only isotropic elastic properties, density and thermal_expansion => MatrixConstituent
+#     if isa(elastic_properties, IsotropicProperties) && !isnothing(density) && 
+#                                                        !isnothing(thermal_expansion) && 
+#                                                        isnothing(orientation_tensor)
+#         # make thermal expansion isotropic
+#         cte = ThermalExpansion(thermal_expansion.alpha1)
+#         return MatrixConstituent(elastic_properties, density, thermal_expansion)
+#     end
 
-    #only fiber
-    @assert !isnothing(volume_fraction) && !isnothing(density)
+#     #only fiber
+#     @assert !isnothing(volume_fraction) && !isnothing(density)
 
 
 
-end
+# end
 
 
 
@@ -76,7 +73,7 @@ Computes effective properties of a composite:
     stiffness, thermal expansion and density
 """
 function effective_properties(matrix::MatrixConstituent, #matrix properties
-                              fibers::AbstractVector{FiberConstituent}, #fibers 
+                              fibers::AbstractVector{<:FiberConstituent}, #fibers 
                               fractions::AbstractVector{T}, #volume / weight fractions 
                               orientation_tensors::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}}; #...
                               by_weight = false, #fractions are per weight, default is by volume
@@ -135,7 +132,7 @@ function effective_properties(matrix::MatrixConstituent, #matrix properties
     if thermal_method == :moritanaka
         cte_eff = all_ctes.moritanaka
     elseif thermal_method == :turner
-        cte_eff = all.ctes.turner
+        cte_eff = all_ctes.turner
     elseif thermal_method == :chow
         cte_eff = all_ctes.chow
     elseif thermal_method == :shapery
@@ -147,6 +144,8 @@ function effective_properties(matrix::MatrixConstituent, #matrix properties
     end
 
     # Density
+    # @info "densities", densities
+    # @info "vol fracs", volume_fractions
     ρeff = effective_density(volume_fractions, densities)
 
 

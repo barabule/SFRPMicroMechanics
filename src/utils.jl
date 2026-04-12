@@ -147,5 +147,6 @@ function effective_density(volume_fractions::AbstractVector{T1}, densities::Abst
     @assert all(densities .> 0) "Densities must be positive!"  
     V = sum(volume_fractions)
     @assert 0 .< V .< 1 "Sum of volume fractions must be between 0 and 1!"
-    return (1-V)* first(densities) + volume_fractions .* view(densities, 2:length(densities))
+    # return @. (1-V)* first(densities) + volume_fractions * view(densities, 2:length(densities))
+    return dot(vcat(1-V, volume_fractions), densities)
 end

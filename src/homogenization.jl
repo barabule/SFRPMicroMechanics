@@ -342,7 +342,7 @@ end
 #extended halpin tsai by averaging the fiber properties
 #returns a transverse isotropic stiffness matrix
 function halpin_tsai(cm::MatrixConstituent, 
-                    cfs::AbstractVector{FiberConstituent},
+                    cfs::AbstractVector{<:FiberConstituent},
                     fractions::AbstractVector{T};
                     by_weight = false, # weight fractions ?
                     mandel = true,
@@ -372,7 +372,7 @@ function halpin_tsai(cm::MatrixConstituent,
     E2s = similar(E1s)
     G12s = similar(E1s)
     G23s = similar(E1s)
-    nu21 = similar(E1s)
+    nu21s = similar(E1s)
     ξ1 = similar(E1s) # fiber geometry factor for longitudinal dir
     ξ2 = similar(E1s) #fgf for transverse dir
 
@@ -382,7 +382,7 @@ function halpin_tsai(cm::MatrixConstituent,
         E2s[i] = 1/2 * (po.E2 + po.E3)
         G12s[i] = 1/2 * (po.G12 + po.G31)
         G23s[i] = po.G23
-        nu21[i] = 1/2 * (po.nu21 + po.nu31)
+        nu21s[i] = 1/2 * (po.nu21 + po.nu31)
         ξ1[i] = 2 * c.aspect_ratio
         ξ2[i] = 2 #TODO hardcode for now
     end
@@ -390,12 +390,12 @@ function halpin_tsai(cm::MatrixConstituent,
     
     #H-T volume average
     
-    props_avg = @MVector zeros(5, T)
-    props_avg[5] = nu12_eff = sum(vol_fracs .* nu21s) + vm * num #ROM for nu
+    props_avg = @MVector zeros(T, 5)
+    props_avg[5] = sum(vol_fracs .* nu21s) + vm * num #ROM for nu
     for (i, props) in enumerate(zip((Em, Em, Gm, Gm),(E1s, E2s, G12s, G23s)))
         Pm, Pf = props
         ξ = i==1 ? ξ1 : ξ2
-        η = [(pf/Pm -1)/(pf/Pm + ξ) for pf in Pf]
+        η = [(Pf[j]/Pm -1)/(Pf[j]/Pm + ξ[j]) for j in eachindex(Pf)]
         num = 1 + sum(ξ .* vol_fracs .* η)
         den = 1 - sum(η .* vol_fracs)
         props_avg[i] = num/den * Pm
