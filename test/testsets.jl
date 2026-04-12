@@ -49,7 +49,38 @@
     @test true 
 end
 
+@testset "Constituents Constructors" verbose =true begin
+    S = SFRPMicroMechanics
 
+    try
+        Cm = S.MatrixConstituent(density = 1.0, 
+                                    elastic_properties = S.IsotropicProperties(2.0, 0.3), 
+                                    thermal_expansion = S.ThermalExpansion(1e-6))
+        @test true
+    catch
+        @info "Failed Matrix Constituent"
+        @test false
+    end
+
+    # Cf = S.FiberConstituent(density = 1.0, 
+    #                         elastic_properties = S.TransverseIsotropicProperties(70.0, 35.0, 23.0, 34.0, 0.1),
+    #                         thermal_expansion = S.ThermalExpansion(1e-6, 20e-6), 
+    #                         shape = S.SpheroidalInclusion(),
+    #                         aspect_ratio = 33.0)
+    try
+        Cf = S.FiberConstituent(density = 1.0, 
+                            elastic_properties = S.TransverseIsotropicProperties(70.0, 35.0, 23.0, 34.0, 0.1),
+                            thermal_expansion = S.ThermalExpansion(1e-6, 20e-6), 
+                            shape = S.SpheroidalInclusion(),
+                            aspect_ratio = 33.0)
+        @test true
+    catch
+        @info "Failed Fiber Constituent"
+        @test false
+    end
+
+
+end
 
 @testset "Tensor Conversions" verbose = true begin
     S = SFRPMicroMechanics
@@ -546,6 +577,11 @@ end
 
     el_const_trans = S.extract_orthotropic_constants(Cht_trans)
     @test isapprox(el_const2, el_const_trans; atol =1e-8)
+
+    #multi fibers
+
+
+
 end
 
 
@@ -1042,3 +1078,4 @@ end
     @test all(vf .≈ vf2)
 
 end
+

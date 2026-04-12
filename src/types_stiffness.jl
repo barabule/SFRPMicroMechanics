@@ -51,7 +51,7 @@ struct TransverseIsotropicProperties{T<:Real}<:AbstractElasticProperties
         @assert e2  > 0 "E2 modulus must be positive!"
         @assert g12 > 0 "G12 modulus must be positive!"
         @assert g23 > 0 "G23 modulus must be positive!"
-        @assert -1<=nu21<=0.5 #TODO is this valid?
+        @assert -1 < nu21 <= 0.5 #TODO is this valid?
         return new{T}(args...)
     end
 
