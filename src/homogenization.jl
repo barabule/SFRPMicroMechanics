@@ -1,4 +1,7 @@
 
+##### FIBERPHASE
+
+
 """
     FiberPhase - collects fiber properties:
         - elastic_properties - (isotropic or Orthotropic) a subtype of AbstractElasticProperties
@@ -26,6 +29,7 @@ Base.@kwdef struct FiberPhase{EP<:AbstractElasticProperties, T<:Real, IG<:Inclus
         return new{EP, T, IG}(ep, VF, AR, shap)
     end
 end
+
 
 
 
@@ -334,6 +338,73 @@ function halpin_tsai(pm::IsotropicProperties, fiber::FiberPhase)
     ar = fiber.aspect_ratio
     return halpin_tsai(pm, pf, vf, ar)
 end
+
+#extended halpin tsai by averaging the fiber properties
+#returns a transverse isotropic stiffness matrix
+function halpin_tsai(cm::MatrixConstituent, 
+                    cfs::AbstractVector{FiberConstituent},
+                    fractions::AbstractVector{T};
+                    by_weight = false, # weight fractions ?
+                    mandel = true,
+                    ) where T<: Real
+
+    #output props will be transverse isotropic
+    #we need to compute 5 averaged properties: E1, E2, G12, G23 and ν21                
+
+    N = length(cfs)
+    @assert length(fractions) == N "Length of fractions vector must match number of fiber constituents!"
+
+    
+
+    pm = cm.elastic_properties
+    Em, num = pm.E, pm.nu
+    Gm = Em/(2(1+num))
+    rhom = cm.density
+
+    #volume fractions
+    rhos = [c.density for c in cfs]
+    vol_fracs = by_weight ? to_volume_fractions(fractions, vcat(rhom, rhos)) : fractions
+    vm = 1 - sum(vol_fracs) #matrix vol frac
+
+
+    #we need all E1, E2 / E3, G12, G23 and nu21
+    E1s = @MVector zeros(T, N)
+    E2s = similar(E1s)
+    G12s = similar(E1s)
+    G23s = similar(E1s)
+    nu21 = similar(E1s)
+    ξ1 = similar(E1s) # fiber geometry factor for longitudinal dir
+    ξ2 = similar(E1s) #fgf for transverse dir
+
+    for (i, c) in enumerate(cfs)
+        po = c.elastic_properties |> OrthotropicProperties
+        E1s[i] = po.E1
+        E2s[i] = 1/2 * (po.E2 + po.E3)
+        G12s[i] = 1/2 * (po.G12 + po.G31)
+        G23s[i] = po.G23
+        nu21[i] = 1/2 * (po.nu21 + po.nu31)
+        ξ1[i] = 2 * c.aspect_ratio
+        ξ2[i] = 2 #TODO hardcode for now
+    end
+
+    
+    #H-T volume average
+    
+    props_avg = @MVector zeros(5, T)
+    props_avg[5] = nu12_eff = sum(vol_fracs .* nu21s) + vm * num #ROM for nu
+    for (i, props) in enumerate(zip((Em, Em, Gm, Gm),(E1s, E2s, G12s, G23s)))
+        Pm, Pf = props
+        ξ = i==1 ? ξ1 : ξ2
+        η = [(pf/Pm -1)/(pf/Pm + ξ) for pf in Pf]
+        num = 1 + sum(ξ .* vol_fracs .* η)
+        den = 1 - sum(η .* vol_fracs)
+        props_avg[i] = num/den * Pm
+    end
+
+    return stiffness_matrix_voigt(TransverseIsotropicProperties(props_avg...); mandel)
+end
+
+
 
 #######    ORIENTATION AVERAGING        ###############
 

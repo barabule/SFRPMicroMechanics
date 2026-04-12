@@ -121,3 +121,16 @@ function to_matrix(a::AbstractOrientationTensor)
                      a6 a2 a4;
                      a5 a4 a3])
 end
+
+
+function average(ot::AbstractVector{AbstractOrientationTensor})
+
+    coeffs = MVector{6}(get_all_coefficients(first(ot))...)
+    for (i,idx) in enumerate(eachindex(ot))
+        i==1 && continue
+        coeffs .+= get_all_coefficients(ot[i])
+    end
+    coeffs .*= 1/length(ot)
+    a1, a2, _, a4, a5, a6 = coeffs
+    return FullOrientationTensor(a1, a2, a4, a5, a6)
+end

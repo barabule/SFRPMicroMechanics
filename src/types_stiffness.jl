@@ -43,6 +43,18 @@ struct TransverseIsotropicProperties{T<:Real}<:AbstractElasticProperties
     G12::T
     G23::T
     nu21::T
+
+    function TransverseIsotropicProperties(e1::T1, e2::T2, g12::T3, g23::T4, nu21::T5) where {T1<:Real, T2<:Real, T3<:Real, T4<:Real, T5<:Real}
+        args = promote(e1, e2, g12, g23, nu21)
+        T = eltype(args)
+        @assert e1  > 0 "E1 modulus must be positive!"
+        @assert e2  > 0 "E2 modulus must be positive!"
+        @assert g12 > 0 "G12 modulus must be positive!"
+        @assert g23 > 0 "G23 modulus must be positive!"
+        @assert -1<=nu21<=0.5 #TODO is this valid?
+        return new{T}(args...)
+    end
+
 end
 
 function stiffness_matrix_voigt(p::TransverseIsotropicProperties; mandel = false)
@@ -148,7 +160,16 @@ function IsotropicProperties(ps::AbstractVector{<:AbstractElasticProperties}, w:
     return isotropic_best_fit(C_avg)
 end
 
+function get_complementary_poisson_ratios(p::AbstractElasticProperties)
+    portho = isa(p, OrthotropicProperties) ? p : OrthotropicProperties(p)
+    
+    nu12 = portho.nu21 * portho.E1 / portho.E2
+    nu13 = portho.nu31 * portho.E1 / portho.E3
+    nu23 = portho.nu32 * portho.E2 / portho.E3
 
+    return (;nu12, nu13, nu23)
+
+end
 
 function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicProperties)
     println(io, "Elastic Constants:")
@@ -165,9 +186,7 @@ function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicProperties)
     println(io, "G23 = $(round(p.G23, sigdigits = 4))")
 
 
-    nu12 = p.nu21 * p.E1 / p.E2
-    nu13 = p.nu31 * p.E1 / p.E3
-    nu23 = p.nu32 * p.E2 / p.E3
+    (nu12, nu13, nu23) = get_complementary_poisson_ratios(p)
 
     println(io, "ν21 = $(round(p.nu21, sigdigits = 4))")
     println(io, "ν31 = $(round(p.nu31, sigdigits = 4))")
@@ -178,29 +197,23 @@ function Base.show(io::IO, ::MIME"text/plain", p::OrthotropicProperties)
 
 end
 
-function Base.show(io::IO, ::MIME"text/plain", p::TransverseIsotropicProperties)
+function Base.show(io::IO, ::MIME"text/plain", pin::TransverseIsotropicProperties)
+    p = OrthotropicProperties(pin)
     println(io, "Elastic Constants:")
     
     println(io, "E1 = $(round(p.E1, sigdigits = 4))")
-    println(io, "E2 = $(round(p.E2, sigdigits = 4))")
-    println(io, "E3 = $(round(p.E2, sigdigits = 4))")
-
-    println(io, "G12 = $(round(p.G12, sigdigits = 4))")
-    println(io, "G31 = $(round(p.G12, sigdigits = 4))")
+    println(io, "E2 = E3 = $(round(p.E2, sigdigits = 4))")
+    
+    println(io, "G12 = G31 = $(round(p.G12, sigdigits = 4))")
     println(io, "G23 = $(round(p.G23, sigdigits = 4))")
 
     
-    nu12 = p.nu21 * p.E1 / p.E2
-    nu13 = nu12
-    nu23 = p.E2 / (2p.G23) - 1
-    nu32 = nu23
+    (nu12, nu13, nu23) = get_complementary_poisson_ratios(p)
+    
 
-    println(io, "ν21 = $(round(p.nu21, sigdigits = 4))")
-    println(io, "ν31 = $(round(p.nu21, sigdigits = 4))")
-    println(io, "ν23 = $(round(nu23, sigdigits = 4))")
-    println(io, "ν12 = $(round(nu12, sigdigits = 4))")
-    println(io, "ν13 = $(round(nu13, sigdigits = 4))")
-    println(io, "ν32 = $(round(p.nu32, sigdigits = 4))")
+    println(io, "ν21 = ν31 = $(round(p.nu21, sigdigits = 4))")
+    println(io, "ν23 = ν32 = $(round(nu23, sigdigits = 4))")
+    println(io, "ν12 = ν13 = $(round(nu12, sigdigits = 4))")
 end
 
 function Base.show(io::IO, ::MIME"text/plain", p::IsotropicProperties)
@@ -503,6 +516,9 @@ function extract_orthotropic_constants(C_66::AbstractMatrix; mandel = true)
    
 end
 
+function extract_orthotropic_constants(p::AbstractElasticProperties)
+    return   isa(p, OrthotropicProperties) ? p : OrthotropicProperties(p)
+end
 
 
 

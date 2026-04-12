@@ -1,16 +1,20 @@
 ###fiber
 
+##### Constituent
+
+
+
 abstract type Constituent end
 
 @kwdef struct FiberConstituent{EP<:AbstractElasticProperties, 
                                T<:Real, 
                                OT<:AbstractOrientationTensor,
                                IG<:InclusionGeometry} <:Constituent
-    elastic_properties<:EP
+    elastic_properties::EP
     density::T
     aspect_ratio::T
     shape::IG = SpheroidalInclusion()
-    thermal_expansion<:ThermalExpansion{T}
+    thermal_expansion::ThermalExpansion{T}
 end
 
 #if only weight fraction is given, we cannot compute volume fraction without knowing the densities of fibers and matrix
@@ -21,10 +25,9 @@ end
 
 @kwdef struct MatrixConstituent{T<:Real} <: Constituent
     elastic_properties::IsotropicProperties{T}
-    density::{T}
+    density::T
     thermal_expansion::ThermalExpansion{T}
 end
-
 
 ## constructors 
 
@@ -56,9 +59,10 @@ end
 
 
 
-function effective_properties(matrix::MatrixConstituent, #matrix properties
+"""
+    effective_properties(matrix::MatrixConstituent, #matrix properties
                               fibers::AbstractVector{FiberConstituent}, #fibers 
-                              fractions::AbstractVector{T1}, #volume / weight fractions 
+                              fractions::AbstractVector{T}, #volume / weight fractions 
                               orientation_tensors::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}}; #...
                               by_weight = false, #fractions are per weight, default is by volume
                               mandel = true, #scale stiffness matrices with mandel or voigt factors
@@ -66,7 +70,22 @@ function effective_properties(matrix::MatrixConstituent, #matrix properties
                               thermal_method = :moritanaka, #method to compute thermal expansion
                               closure_type = IBOF, #4th order orientation tensor approximation method
                               symmetrize = true,
-                            )
+                            ) where {T<:Real}
+
+Computes effective properties of a composite:
+    stiffness, thermal expansion and density
+"""
+function effective_properties(matrix::MatrixConstituent, #matrix properties
+                              fibers::AbstractVector{FiberConstituent}, #fibers 
+                              fractions::AbstractVector{T}, #volume / weight fractions 
+                              orientation_tensors::Union{AbstractOrientationTensor, AbstractVector{<:AbstractOrientationTensor}}; #...
+                              by_weight = false, #fractions are per weight, default is by volume
+                              mandel = true, #scale stiffness matrices with mandel or voigt factors
+                              stiffness_method= :moritanaka, #method to compute stiffness
+                              thermal_method = :moritanaka, #method to compute thermal expansion
+                              closure_type = IBOF, #4th order orientation tensor approximation method
+                              symmetrize = true,
+                            ) where {T<:Real}
 
     densities = vcat(matrix.density, [c.density for c in fibers])
     volume_fractions = by_weight ? to_volume_fractions(fractions, densities) : fractions
@@ -95,7 +114,10 @@ function effective_properties(matrix::MatrixConstituent, #matrix properties
                     symmetrize)
 
     elseif stiffness_method == :halpintsai
-        #compute an averaged transverse fiber and use that..
+       Caligned = halpin_tsai(matrix, fibers,fractions; by_weight, mandel)
+       #orientation_average
+       a2_avg = isa(orientation_tensors, AbstractArray) ? average(orientation_tensors) : orientation_tensors
+       Ceff = orientation_average(Caligned, a2_avg;closure_type, mandel)
     end
     peff = extract_orthotropic_constants(Ceff)
     
@@ -109,16 +131,6 @@ function effective_properties(matrix::MatrixConstituent, #matrix properties
                                         mandel,
                                         average = true, #always orientation average
                                         )
-
-# (;turner = cte_turner,
-#             rom = cte_rom,
-#             kerner = cte_kerner,
-#             shapery = cte_shapery,
-#             chow = cte_chow,
-#             moritanaka = cte_mt,
-#             moritanaka_simplified =cte_mt_simplified,
-#             )
-
 
     if thermal_method == :moritanaka
         cte_eff = all_ctes.moritanaka

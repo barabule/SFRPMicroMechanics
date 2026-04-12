@@ -10,13 +10,18 @@ using Combinatorics: permutations
 
 
 # Include sub-modules
-include("typedefs.jl")
+include("types_stiffness.jl")
+include("types_thermal_expansion.jl")
 include("orientation_tensors.jl")
 include("eshelby.jl")
+
+include("constituent.jl")
+
 include("utils.jl")
 include("closures.jl")
 include("homogenization.jl")
 include("thermal_expansion.jl")
+
 include("analyse.jl")
 
 
