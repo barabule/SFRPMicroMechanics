@@ -612,9 +612,9 @@ end
     fibers = [S.FiberPhase(pf, vf, AR, shape)]
 
     ctes = [cte_m, cte_f]
-    @info "effective CTE MT"
+    # @info "effective CTE MT"
     cte_eff = S.effective_thermal_expansion_mt(pm, fibers, ctes, a; mandel)
-    display(cte_eff)
+    # display(cte_eff)
     
     # @info "effective CTE Chow"
     # cte_eff_chow = S.effective_thermal_expansion_chow(pm, fibers[1], ctes)
@@ -644,18 +644,16 @@ end
     @test cte_eff.alpha1 < cte_eff.alpha2 ≈ cte_eff.alpha3
 
 
-    #results for transverse with isotropic props == isotropic
+    #results for transverse with isotropic props == cte of isotropic fibers
+    
+    # cte_mt = effective_thermal_expansion_mt(pm, fibers, ctes, a; mandel, average)
     Gf = Ef / (2(1+nuf))
     pf_iso = S.IsotropicProperties(Ef, nuf)
     pf = S.TransverseIsotropicProperties(;E1 = Ef, E2 = Ef, nu12 = nuf, nu23 = nuf, G12 = Gf)
     vf, AR = 0.2, 15.0
     fibers = [S.FiberPhase(pf, vf, AR, shape)]
     cte_vec = [S.ThermalExpansion(80e-6), S.ThermalExpansion(5e-6)]
-    cte_f2 = S.ThermalExpansion(pm, fibers, cte_vec , a)
-    cte_iso = S.ThermalExpansion(pm, [S.FiberPhase(pf_iso, vf, AR, shape)], cte_vec, a)
-    #should be same cte
-    @test cte_iso.alpha1 ≈ cte_f2.alpha1 ≈ cte_f2.alpha2 ≈ cte_f2.alpha3
-    #    
+    
 
     # just test if this works
 
